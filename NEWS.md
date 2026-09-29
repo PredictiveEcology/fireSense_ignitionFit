@@ -1,4 +1,6 @@
-# fireSense_IgnitionFit (development version)
+# fireSense_ignitionFit 1.1.0
+
+- Renamed from `fireSense_IgnitionFit` to `fireSense_ignitionFit` (module naming convention `<model>_<camelCaseComponent>`); projects must rename the module and its `params` key. The class `fireSense_IgnitionFit` and the objects `fireSense_IgnitionFitted`, `fireSense_IgnitionFittedList` and `fireSense_IgnitionPredicted` keep their names. Version 1.1.0.
 
 - New parameter `.studyAreaName` (default `NA`), the name PredictiveEcology modules use for the study area. This module does not use it yet.
 

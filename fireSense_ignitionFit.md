@@ -1,5 +1,5 @@
 ---
-title: "fireSense_IgnitionFit Manual"
+title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.0.2.9000"
 date: "Last updated: 2026-09-24"
 output:
@@ -12,15 +12,15 @@ output:
     keep_md: yes
 editor_options:
   chunk_output_type: console
-bibliography: citations/references_fireSense_IgnitionFit.bib
+bibliography: citations/references_fireSense_ignitionFit.bib
 link-citations: true
 always_allow_html: true
 ---
 
-# fireSense_IgnitionFit Module
+# fireSense_ignitionFit Module
 
 <!-- the following are text references used in captions for LaTeX compatibility -->
-(ref:fireSense-IgnitionFit) *fireSense_IgnitionFit*
+(ref:fireSense-ignitionFit) *fireSense_ignitionFit*
 
 
 
@@ -36,7 +36,7 @@ Eliot McIntire <eliot.mcintire@nrcan-rncan.gc.ca> [aut, cre], Ian Eddy <ian.eddy
 ## Module Overview
 
 Fits models of fire ignition and, optionally, fire escape from climate and fuel covariates.
-The fitted models are used by *fireSense_IgnitionPredict* and *fireSense_dataPrepPredict*.
+The fitted models are used by *fireSense_ignitionPredict* and *fireSense_dataPrepPredict*.
 The module does not prepare data; *fireSense_dataPrepFit* supplies its inputs.
 Earlier versions fitted the piecewise regression models of @Marchal:2017a, @Marchal:2017b and @Marchal:2019.
 
@@ -64,11 +64,11 @@ Fits are cached with `reproducible::Cache()`.
 
 ### Module inputs and parameters
 
-Table \@ref(tab:moduleInputs-fireSense-IgnitionFit) lists the declared inputs.
+Table \@ref(tab:moduleInputs-fireSense-ignitionFit) lists the declared inputs.
 Fitting escape also needs `fireSense_escapeCovariates` (from *fireSense_dataPrepFit*), which is not declared in the metadata.
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
-<caption>(\#tab:moduleInputs-fireSense-IgnitionFit)(\#tab:moduleInputs-fireSense-IgnitionFit)List of (ref:fireSense-IgnitionFit) input objects and their description.</caption>
+<caption>(\#tab:moduleInputs-fireSense-ignitionFit)(\#tab:moduleInputs-fireSense-ignitionFit)List of (ref:fireSense-ignitionFit) input objects and their description.</caption>
  <thead>
   <tr>
    <th style="text-align:left;"> objectName </th>
@@ -93,10 +93,10 @@ Fitting escape also needs `fireSense_escapeCovariates` (from *fireSense_dataPrep
 </tbody>
 </table>
 
-Parameters are in Table \@ref(tab:moduleParams-fireSense-IgnitionFit).
+Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
-<caption>(\#tab:moduleParams-fireSense-IgnitionFit)(\#tab:moduleParams-fireSense-IgnitionFit)List of (ref:fireSense-IgnitionFit) parameters and their description.</caption>
+<caption>(\#tab:moduleParams-fireSense-ignitionFit)(\#tab:moduleParams-fireSense-ignitionFit)List of (ref:fireSense-ignitionFit) parameters and their description.</caption>
  <thead>
   <tr>
    <th style="text-align:left;"> paramName </th>
@@ -202,12 +202,12 @@ Nothing is saved apart from the figure.
 
 ### Module outputs
 
-Outputs are in Table \@ref(tab:moduleOutputs-fireSense-IgnitionFit).
+Outputs are in Table \@ref(tab:moduleOutputs-fireSense-ignitionFit).
 `fireSense_IgnitionFitted$modelList$model` is the list of per-fold models (`Fold1`, ...) plus `rocs`, the ROC curve of each fold.
 `lambdaRescaleFactor` is the number of rows in the covariates divided by the number of non-NA cells in `ignitionFitRTM`.
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
-<caption>(\#tab:moduleOutputs-fireSense-IgnitionFit)(\#tab:moduleOutputs-fireSense-IgnitionFit)List of (ref:fireSense-IgnitionFit) outputs and their description.</caption>
+<caption>(\#tab:moduleOutputs-fireSense-ignitionFit)(\#tab:moduleOutputs-fireSense-ignitionFit)List of (ref:fireSense-ignitionFit) outputs and their description.</caption>
  <thead>
   <tr>
    <th style="text-align:left;"> objectName </th>
@@ -234,9 +234,9 @@ Outputs are in Table \@ref(tab:moduleOutputs-fireSense-IgnitionFit).
 
 ``` r
 ## in the same `simInit()` call as fireSense_dataPrepFit, which creates the inputs
-modules <- c("fireSense_dataPrepFit", "fireSense_IgnitionFit")
+modules <- c("fireSense_dataPrepFit", "fireSense_ignitionFit")
 params <- list(
-  fireSense_IgnitionFit = list(whichProcessesToFit = c("ignition", "escape"), .plots = "png")
+  fireSense_ignitionFit = list(whichProcessesToFit = c("ignition", "escape"), .plots = "png")
 )
 
 ## after `spades()`
@@ -246,11 +246,11 @@ sim$fireSense_IgnitionFitted$modelList$model$Fold1
 ### Links to other modules
 
 - [fireSense_dataPrepFit](https://github.com/PredictiveEcology/fireSense_dataPrepFit) creates the inputs.
-- [fireSense_dataPrepPredict](https://github.com/PredictiveEcology/fireSense_dataPrepPredict) and [fireSense_IgnitionPredict](https://github.com/PredictiveEcology/fireSense_IgnitionPredict) use the outputs.
+- [fireSense_dataPrepPredict](https://github.com/PredictiveEcology/fireSense_dataPrepPredict) and [fireSense_ignitionPredict](https://github.com/PredictiveEcology/fireSense_ignitionPredict) use the outputs.
 
 ### Getting help
 
-- <https://github.com/PredictiveEcology/fireSense_IgnitionFit/issues>
+- <https://github.com/PredictiveEcology/fireSense_ignitionFit/issues>
 
 ## References
 

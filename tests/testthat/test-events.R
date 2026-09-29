@@ -107,7 +107,7 @@ test_that(".runInitialTime sets when checkData and run happen", {
   sim <- runModule(params = list(.runInitialTime = 2), end = 2, run = FALSE)
   expect_identical(moduleEvents(SpaDES.core::events(sim))$eventType, "init")
   utils::capture.output(suppressWarnings(suppressMessages(
-    sim <- SpaDES.core::spades(sim, events = list(fireSense_IgnitionFit = "init")))))
+    sim <- SpaDES.core::spades(sim, events = list(fireSense_ignitionFit = "init")))))
   sched <- moduleEvents(SpaDES.core::events(sim))
   expect_identical(sched$eventType, c("checkData", "run"))
   expect_equal(sched$eventTime, c(2, 2))

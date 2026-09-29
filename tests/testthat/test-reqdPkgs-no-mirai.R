@@ -4,7 +4,7 @@
 ## fireSenseUtils::bufferToArea via fireSense_dataPrepFit) hangs forever on a lock the
 ## threads held. This module does not use mirai, so it must not be listed.
 test_that("reqdPkgs does not list mirai", {
-  exprs <- parse(testthat::test_path("..", "..", "fireSense_IgnitionFit.R"), keep.source = FALSE)
+  exprs <- parse(testthat::test_path("..", "..", "fireSense_ignitionFit.R"), keep.source = FALSE)
   dm <- Filter(function(x) is.call(x) && identical(x[[1]], as.name("defineModule")), exprs)
   expect_length(dm, 1L)
   pkgs <- unlist(eval(dm[[1]][[3]]$reqdPkgs, baseenv()))
