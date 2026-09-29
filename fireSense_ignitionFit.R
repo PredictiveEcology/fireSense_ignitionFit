@@ -1,5 +1,5 @@
 defineModule(sim, list(
-  name = "fireSense_IgnitionFit",
+  name = "fireSense_ignitionFit",
   description = paste("Fit statistical models that can be used to parameterize (calibrate)",
                       "the fire ignition component of landscape fire models (e.g. fireSense)."),
   keywords = c("fire frequency", "optimization", "additive property", "poisson",
@@ -11,11 +11,11 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", email = "achubaty@for-cast.ca", role = "ctb")
   ),
   childModules = character(),
-  version = list(fireSense_IgnitionFit = "1.0.2.9000"),
+  version = list(fireSense_ignitionFit = "1.1.0"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = NA_character_, # e.g., "year",
   citation = list("citation.bib"),
-  documentation = list("README.txt", "fireSense_IgnitionFit.Rmd"),
+  documentation = list("README.txt", "fireSense_ignitionFit.Rmd"),
   loadOrder = list(after = "fireSense_dataPrepFit",
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
@@ -94,7 +94,7 @@ defineModule(sim, list(
 #' @param eventType One of `init`, `checkData`, `run`.
 #' @param debug Unused.
 #' @return `sim`, invisibly.
-doEvent.fireSense_IgnitionFit = function(sim, eventTime, eventType, debug = FALSE) {
+doEvent.fireSense_ignitionFit = function(sim, eventTime, eventType, debug = FALSE) {
   moduleName <- current(sim)$moduleName
 
   switch(
