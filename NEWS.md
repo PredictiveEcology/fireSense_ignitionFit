@@ -1,3 +1,7 @@
+# fireSense_ignitionFit 1.1.1
+
+- reqdPkgs now lists `purrr` and `RColorBrewer`, which the module calls with `::` but did not list. Version 1.1.1.
+
 # fireSense_ignitionFit 1.1.0
 
 - Renamed from `fireSense_IgnitionFit` to `fireSense_ignitionFit` (module naming convention `<model>_<camelCaseComponent>`); projects must rename the module and its `params` key. The class `fireSense_IgnitionFit` and the objects `fireSense_IgnitionFitted`, `fireSense_IgnitionFittedList` and `fireSense_IgnitionPredicted` keep their names. Version 1.1.0.
