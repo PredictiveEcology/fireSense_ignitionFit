@@ -17,8 +17,10 @@ test_that("inputs are the expected names and classes", {
   inputs <- stats::setNames(md$inputObjects$objectClass, md$inputObjects$objectName)
   expect_identical(
     inputs[order(names(inputs))],
-    c(fireSense_ignitionCovariates = "data.frame",
-      ignitionFitRTM               = "SpatRaster")
+    c(.ELFind                      = "character",
+      fireSense_ignitionCovariates = "data.frame",
+      ignitionFitRTM               = "SpatRaster",
+      studyArea                    = "SpatVector")
   )
 })
 
@@ -28,7 +30,8 @@ test_that("outputs are the expected names and classes", {
   expect_identical(
     outputs[order(names(outputs))],
     c(fireSense_EscapeFitted   = "fireSense_EscapeFit",
-      fireSense_IgnitionFitted = "fireSense_IgnitionFit")
+      fireSense_IgnitionFitted = "fireSense_IgnitionFit",
+      ignitionFitPreRun        = "data.frame")
   )
 })
 
@@ -37,7 +40,8 @@ test_that("parameters are the expected names", {
   expect_identical(
     sort(md$parameters$paramName),
     sort(c(".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
-           "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit"))
+           "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
+           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting"))
   )
 })
 
@@ -49,7 +53,8 @@ test_that("parameters have the expected classes and defaults", {
     classes[order(names(classes))],
     c(.plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
       .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
-      modelAlgorithm = "character", rescaleVars = "logical",
+      ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
+      modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
       whichProcessesToFit = "character")
   )
 
@@ -62,6 +67,10 @@ test_that("parameters have the expected classes and defaults", {
   expect_identical(default(".useCache"), FALSE)
   expect_null(default(".seed"))
   expect_true(is.na(default(".runInterval")))
+  expect_identical(default("ignitionFitFilename"), "latest")
+  expect_identical(default("refitExisting"), FALSE)
+  expect_identical(default("ignitionFitGoogleDriveFolder"),
+                   "https://drive.google.com/drive/folders/1X9-mRjyLMNpgkP_cfqhbr_AQEPOsVCHf")
   ## no parameter has bounds any more
   expect_true(all(vapply(p$min, function(x) is.na(x) || is.null(x), logical(1))))
 })
