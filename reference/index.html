@@ -95,6 +95,22 @@
         </td>
         <td><p>Paste with <code>_</code>, for cache function names and filenames</p></td>
       </tr><tr><td>
+          <p><code><a href="hasPreRunIgnitionFitForThisPolygon.html">hasPreRunIgnitionFitForThisPolygon()</a></code> </p>
+        </td>
+        <td><p>Does the shared ledger already hold a fit for the polygon this run fits?</p></td>
+      </tr><tr><td>
+          <p><code><a href="ignitionFitYears.html">ignitionFitYears()</a></code> </p>
+        </td>
+        <td><p>The fire years this run's covariates cover</p></td>
+      </tr><tr><td>
+          <p><code><a href="ignitionLedgerCacheGeo.html">ignitionLedgerCacheGeo()</a></code> </p>
+        </td>
+        <td><p>The one place the ignition/escape ledger is read or written through <code>CacheGeo()</code></p></td>
+      </tr><tr><td>
+          <p><code><a href="ignitionLedgerWriteFile.html">ignitionLedgerWriteFile()</a></code> </p>
+        </td>
+        <td><p>The ledger file this run reads and writes</p></td>
+      </tr><tr><td>
           <p><code><a href="meanRocMessage.html">meanRocMessage()</a></code> </p>
         </td>
         <td><p>Message reporting the mean AUC across folds</p></td>
@@ -118,6 +134,18 @@
           <p><code><a href="stopIfFoldsLackPositives.html">stopIfFoldsLackPositives()</a></code> </p>
         </td>
         <td><p>Stop when a cross-validation fold would train without any positive observation.</p></td>
+      </tr><tr><td>
+          <p><code><a href="stripFittedForLedger.html">stripFittedForLedger()</a></code> </p>
+        </td>
+        <td><p>Strip a fitted model down to what <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> needs before it goes in the shared ledger</p></td>
+      </tr><tr><td>
+          <p><code><a href="useExistingIgnitionFit.html">useExistingIgnitionFit()</a></code> </p>
+        </td>
+        <td><p>Take this polygon's ignition and escape fits from the ledger instead of fitting</p></td>
+      </tr><tr><td>
+          <p><code><a href="writeIgnitionLedgerRow.html">writeIgnitionLedgerRow()</a></code> </p>
+        </td>
+        <td><p>Write this run's ignition and escape fits to the shared ledger</p></td>
       </tr></tbody></table></div>
 
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">

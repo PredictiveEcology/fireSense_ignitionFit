@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.1.1"
-date: "Last updated: 2026-09-30"
+date: "Last updated: 2026-10-01"
 output:
   bookdown::html_document2:
     toc: true
@@ -80,6 +80,18 @@ Fitting escape also needs `fireSense_escapeCovariates` (from *fireSense_dataPrep
   </tr>
  </thead>
 <tbody>
+  <tr>
+   <td style="text-align:left;"> .ELFind </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> Identifier of the polygon being fit, e.g. '6.1.1'. This becomes the `polygonID` of the row this module writes to the shared cloud fit ledger (`ignitionFitFilename` in `ignitionFitGoogleDriveFolder`). Only used, and only required, when `studyArea` is supplied. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> studyArea </td>
+   <td style="text-align:left;"> SpatVector </td>
+   <td style="text-align:left;"> Polygon being fit; its geometry and crs go in the ledger row. Optional: without it, this module fits every time and never reads or writes the shared ledger, as before this parameter existed. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
   <tr>
    <td style="text-align:left;"> fireSense_ignitionCovariates </td>
    <td style="text-align:left;"> data.frame </td>
@@ -190,6 +202,30 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant. </td>
   </tr>
+  <tr>
+   <td style="text-align:left;"> ignitionFitGoogleDriveFolder </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> https://.... </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Google Drive folder url holding the shared ignition/escape fit ledger (`ignitionFitFilename`). `NULL` keeps the ledger purely local, in `inputPath(sim)`, with no Google Drive access at all (e.g. for tests). </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ignitionFitFilename </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> latest </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> File name of the shared fit ledger: an `sf` object with one row per polygon, holding its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `"latest"` (the default) reads and writes the file named for this fit's fire years and model, `fireSenseUtils::ignitionFitFilenameFor()`, e.g. `fireSenseIgnitionParams_1985-2024_xgboost.rds`. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> refitExisting </td>
+   <td style="text-align:left;"> logical </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> FOR DEVELOPERS ONLY: fit this polygon even when the ledger already holds ignition and escape fits for it. A ledger row normally means the fit is done, and `run` skips it and uses the stored fits instead. Set this when the fit's INPUTS have changed, so the stored row is stale and the polygon must be fitted again. </td>
+  </tr>
 </tbody>
 </table>
 
@@ -221,12 +257,17 @@ Outputs are in Table \@ref(tab:moduleOutputs-fireSense-ignitionFit).
   <tr>
    <td style="text-align:left;"> fireSense_EscapeFitted </td>
    <td style="text-align:left;"> fireSense_EscapeFit </td>
-   <td style="text-align:left;"> List of `modelList` and `scaleData`, as `fireSense_IgnitionFitted`, with `modelList` of class `fireSense_EscapeFit`. </td>
+   <td style="text-align:left;"> List of `modelList` and `scaleData`, as `fireSense_IgnitionFitted`, with `modelList` of class `fireSense_EscapeFit`. Either freshly fitted, or, when `studyArea` matches a row of the shared ledger, read from it. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> fireSense_IgnitionFitted </td>
    <td style="text-align:left;"> fireSense_IgnitionFit </td>
-   <td style="text-align:left;"> List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models and their ROC curves, `fittingRes`, `lambdaRescaleFactor`, `rescales`) and `scaleData` (centre and scale used to standardise the covariates). </td>
+   <td style="text-align:left;"> List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models and their ROC curves, `fittingRes`, `lambdaRescaleFactor`, `rescales`) and `scaleData` (centre and scale used to standardise the covariates). Either freshly fitted, or, when `studyArea` matches a row of the shared ledger, read from it. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ignitionFitPreRun </td>
+   <td style="text-align:left;"> data.frame </td>
+   <td style="text-align:left;"> Only when `studyArea` is supplied: ledger rows that overlap it, from `CacheGeo` (`NULL` if there is no previous fit): a `geometry` column, `polygonID`, and `fireSense_IgnitionFitted`/`fireSense_EscapeFitted` list-columns. </td>
   </tr>
 </tbody>
 </table>
