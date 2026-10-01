@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.2</span>
       </span>
     </div>
 
@@ -100,6 +100,30 @@ desc
 sourceURL
 </th>
 </tr></thead><tbody><tr><td style="text-align:left;">
+.ELFind
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+Identifier of the polygon being fit, e.g. ‘6.1.1’. This becomes the <code>polygonID</code> of the row this module writes to the shared cloud fit ledger (<code>ignitionFitFilename</code> in <code>ignitionFitGoogleDriveFolder</code>). Only used, and only required, when <code>studyArea</code> is supplied.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr><tr><td style="text-align:left;">
+studyArea
+</td>
+<td style="text-align:left;">
+SpatVector
+</td>
+<td style="text-align:left;">
+Polygon being fit; its geometry and crs go in the ledger row. Optional: without it, this module fits every time and never reads or writes the shared ledger, as before this parameter existed.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr><tr><td style="text-align:left;">
 fireSense_ignitionCovariates
 </td>
 <td style="text-align:left;">
@@ -324,6 +348,60 @@ NA
 <td style="text-align:left;">
 Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant.
 </td>
+</tr><tr><td style="text-align:left;">
+ignitionFitGoogleDriveFolder
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+<a href="https://" class="external-link uri">https://</a>….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Google Drive folder url holding the shared ignition/escape fit ledger (<code>ignitionFitFilename</code>). <code>NULL</code> keeps the ledger purely local, in <code>inputPath(sim)</code>, with no Google Drive access at all (e.g. for tests).
+</td>
+</tr><tr><td style="text-align:left;">
+ignitionFitFilename
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+latest
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+File name of the shared fit ledger: an <code>sf</code> object with one row per polygon, holding its fitted <code>fireSense_IgnitionFitted</code> and <code>fireSense_EscapeFitted</code>. <code>"latest"</code> (the default) reads and writes the file named for this fit’s fire years and model, <code><a href="https://rdrr.io/pkg/fireSenseUtils/man/ignitionFitLedger.html" class="external-link">fireSenseUtils::ignitionFitFilenameFor()</a></code>, e.g. <code>fireSenseIgnitionParams_1985-2024_xgboost.rds</code>.
+</td>
+</tr><tr><td style="text-align:left;">
+refitExisting
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+FOR DEVELOPERS ONLY: fit this polygon even when the ledger already holds ignition and escape fits for it. A ledger row normally means the fit is done, and <code>run</code> skips it and uses the stored fits instead. Set this when the fit’s INPUTS have changed, so the stored row is stale and the polygon must be fitted again.
+</td>
 </tr></tbody></table></div>
 <div class="section level3">
 <h3 id="plotting">Plotting<a class="anchor" aria-label="anchor" href="#plotting"></a></h3>
@@ -355,7 +433,7 @@ fireSense_EscapeFitted
 fireSense_EscapeFit
 </td>
 <td style="text-align:left;">
-List of <code>modelList</code> and <code>scaleData</code>, as <code>fireSense_IgnitionFitted</code>, with <code>modelList</code> of class <code>fireSense_EscapeFit</code>.
+List of <code>modelList</code> and <code>scaleData</code>, as <code>fireSense_IgnitionFitted</code>, with <code>modelList</code> of class <code>fireSense_EscapeFit</code>. Either freshly fitted, or, when <code>studyArea</code> matches a row of the shared ledger, read from it.
 </td>
 </tr><tr><td style="text-align:left;">
 fireSense_IgnitionFitted
@@ -364,7 +442,16 @@ fireSense_IgnitionFitted
 fireSense_IgnitionFit
 </td>
 <td style="text-align:left;">
-List of <code>modelList</code> (class <code>fireSense_IgnitionFit</code>: <code>model</code>, the per-fold xgboost models and their ROC curves, <code>fittingRes</code>, <code>lambdaRescaleFactor</code>, <code>rescales</code>) and <code>scaleData</code> (centre and scale used to standardise the covariates).
+List of <code>modelList</code> (class <code>fireSense_IgnitionFit</code>: <code>model</code>, the per-fold xgboost models and their ROC curves, <code>fittingRes</code>, <code>lambdaRescaleFactor</code>, <code>rescales</code>) and <code>scaleData</code> (centre and scale used to standardise the covariates). Either freshly fitted, or, when <code>studyArea</code> matches a row of the shared ledger, read from it.
+</td>
+</tr><tr><td style="text-align:left;">
+ignitionFitPreRun
+</td>
+<td style="text-align:left;">
+data.frame
+</td>
+<td style="text-align:left;">
+Only when <code>studyArea</code> is supplied: ledger rows that overlap it, from <code>CacheGeo</code> (<code>NULL</code> if there is no previous fit): a <code>geometry</code> column, <code>polygonID</code>, and <code>fireSense_IgnitionFitted</code>/<code>fireSense_EscapeFitted</code> list-columns.
 </td>
 </tr></tbody></table></div>
 <div class="section level3">

@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.2</span>
       </span>
     </div>
 
@@ -52,7 +52,7 @@
     </div>
 
     <div class="section level2">
-<h2 class="page-header" data-toc-text="development version" id="firesense_ignitionfit-development-version">fireSense_ignitionFit (development version)<a class="anchor" aria-label="anchor" href="#firesense_ignitionfit-development-version"></a></h2>
+<h2 class="page-header" data-toc-text="1.1.2" id="firesense_ignitionfit-112">fireSense_ignitionFit 1.1.2<a class="anchor" aria-label="anchor" href="#firesense_ignitionfit-112"></a></h2>
 <ul><li>Ignition and escape fits are shared through a cloud, geo-keyed ledger, as <code>fireSense_spreadFit</code> does its fits. When <code>studyArea</code> and <code>.ELFind</code> are supplied, the module reads the ledger (new parameters <code>ignitionFitGoogleDriveFolder</code> and <code>ignitionFitFilename</code>) for the study area. If a row exists for this polygon, its <code>fireSense_IgnitionFitted</code> and <code>fireSense_EscapeFitted</code> are used and the fit is skipped. Otherwise the fit runs and its result is written to the ledger. New parameter <code>refitExisting</code> fits even when the ledger has a row. Without <code>studyArea</code> nothing changes. New output <code>ignitionFitPreRun</code>, the ledger rows read for <code>studyArea</code>.</li>
 <li>The ledger row drops <code>modelList$model$rocs</code> (the per-fold <code><a href="https://rdrr.io/pkg/pROC/man/roc.html" class="external-link">pROC::roc()</a></code> curves, unused by <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>), so rows stay small.</li>
 <li>Floors: <code>fireSenseUtils</code> (&gt;= 0.2.3.9078, for <code>ignitionFitFilenameFor()</code> and <code>ignitionFitAdditionalColNamesTxt</code>), <code>reproducible</code> (&gt;= 3.2.1.9058, whose <code>CacheGeo()</code> can append to a ledger that holds xgboost models).</li>
