@@ -1,4 +1,4 @@
-# fireSense_ignitionFit (development version)
+# fireSense_ignitionFit 1.1.2
 
 - Ignition and escape fits are shared through a cloud, geo-keyed ledger, as `fireSense_spreadFit` does its fits. When `studyArea` and `.ELFind` are supplied, the module reads the ledger (new parameters `ignitionFitGoogleDriveFolder` and `ignitionFitFilename`) for the study area. If a row exists for this polygon, its `fireSense_IgnitionFitted` and `fireSense_EscapeFitted` are used and the fit is skipped. Otherwise the fit runs and its result is written to the ledger. New parameter `refitExisting` fits even when the ledger has a row. Without `studyArea` nothing changes. New output `ignitionFitPreRun`, the ledger rows read for `studyArea`.
 - The ledger row drops `modelList$model$rocs` (the per-fold `pROC::roc()` curves, unused by `predict()`), so rows stay small.
