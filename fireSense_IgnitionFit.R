@@ -11,21 +11,20 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", email = "achubaty@for-cast.ca", role = "ctb")
   ),
   childModules = character(),
-  version = list(fireSense_IgnitionFit = "1.0.2.9000"),
+  version = list(fireSense_IgnitionFit = "1.0.3.9000"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = NA_character_, # e.g., "year",
   citation = list("citation.bib"),
   documentation = list("README.txt", "fireSense_IgnitionFit.Rmd"),
-  loadOrder = list(after = "fireSense_dataPrepFit",
+  loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.1.0)",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9047)",
                   "ggplot2", "ggpubr", "magrittr",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
-                  "PredictiveEcology/reproducible@development (>= 2.1.2.9067)",
-                  #TODO correct this when reproducible is merged - it is due to cache(predict)
-                  "RhpcBLASctl",
+                  "PredictiveEcology/reproducible@development (>= 3.2.1.9025)", # CacheGeo, for the shared fit ledger
+                  "RhpcBLASctl", "sf",
                   "caret", "pROC",
                   "PredictiveEcology/SHAPforxgboost (>= 0.1.3.9001)", "xgboost (>=3.0.0)", "lightgbm", # install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
                   "terra"),
@@ -59,9 +58,36 @@ defineModule(sim, list(
     defineParameter(".useCache", "logical", FALSE, NA, NA,
                     desc = paste("Should this entire module be run with caching activated?",
                                  "This is generally intended for data-type modules,",
-                                 "where stochasticity and time are not relevant."))
+                                 "where stochasticity and time are not relevant.")),
+    defineParameter("ignitionFitGoogleDriveFolder", "character",
+                    "https://drive.google.com/drive/folders/1X9-mRjyLMNpgkP_cfqhbr_AQEPOsVCHf",
+                    NA, NA, paste("Google Drive folder url holding the shared ignition/escape fit ledger",
+                                  "(`ignitionFitFilename`). `NULL` keeps the ledger purely local, in",
+                                  "`inputPath(sim)`, with no Google Drive access at all (e.g. for tests).")),
+    defineParameter("ignitionFitFilename", "character", "latest",
+                    NA, NA, paste("File name of the shared fit ledger: an `sf` object with one row per polygon, holding",
+                                  "its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `\"latest\"` (the",
+                                  "default) reads and writes the file named for this fit's fire years and model,",
+                                  "`fireSenseUtils::ignitionFitFilenameFor()`, e.g.",
+                                  "`fireSenseIgnitionParams_1985-2024_xgboost.rds`.")),
+    defineParameter("refitExisting", "logical", FALSE, NA, NA,
+                    paste("FOR DEVELOPERS ONLY: fit this polygon even when the ledger already holds ignition and",
+                          "escape fits for it. A ledger row normally means the fit is done, and `run` skips it and",
+                          "uses the stored fits instead. Set this when the fit's INPUTS have changed, so the stored",
+                          "row is stale and the polygon must be fitted again."))
   ),
   inputObjects = bindrows(
+    expectsInput(".ELFind", "character",
+                 desc = paste("Identifier of the polygon being fit, e.g. '6.1.1'. This becomes the",
+                              "`polygonID` of the row this module writes to the shared cloud fit ledger",
+                              "(`ignitionFitFilename` in `ignitionFitGoogleDriveFolder`). Only used, and only",
+                              "required, when `studyArea` is supplied."),
+                 sourceURL = NA),
+    expectsInput("studyArea", "SpatVector",
+                 desc = paste("Polygon being fit; its geometry and crs go in the ledger row. Optional: without it,",
+                              "this module fits every time and never reads or writes the shared ledger, as before",
+                              "this parameter existed."),
+                 sourceURL = NA),
     expectsInput("fireSense_ignitionCovariates", "data.frame",
                  desc = paste("Table of aggregated ignition covariates with annual `ignitions` counts,",
                               "one row per `pixelID` and `year`.")),
@@ -73,11 +99,17 @@ defineModule(sim, list(
   outputObjects = bindrows(
     createsOutput("fireSense_EscapeFitted", "fireSense_EscapeFit",
                   desc = paste("List of `modelList` and `scaleData`, as `fireSense_IgnitionFitted`,",
-                               "with `modelList` of class `fireSense_EscapeFit`.")),
+                               "with `modelList` of class `fireSense_EscapeFit`. Either freshly fitted, or, when",
+                               "`studyArea` matches a row of the shared ledger, read from it.")),
     createsOutput("fireSense_IgnitionFitted", "fireSense_IgnitionFit",
                   desc = paste("List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models",
                                "and their ROC curves, `fittingRes`, `lambdaRescaleFactor`, `rescales`)",
-                               "and `scaleData` (centre and scale used to standardise the covariates)."))
+                               "and `scaleData` (centre and scale used to standardise the covariates). Either freshly",
+                               "fitted, or, when `studyArea` matches a row of the shared ledger, read from it.")),
+    createsOutput("ignitionFitPreRun", "data.frame",
+                  desc = paste("Only when `studyArea` is supplied: ledger rows that overlap it, from `CacheGeo`",
+                               "(`NULL` if there is no previous fit): a `geometry` column, `polygonID`, and",
+                               "`fireSense_IgnitionFitted`/`fireSense_EscapeFitted` list-columns."))
   )
 ))
 
@@ -126,10 +158,12 @@ doEvent.fireSense_IgnitionFit = function(sim, eventTime, eventType, debug = FALS
 ### template initialization
 #' Check inputs before fitting (the `checkData` event)
 #'
-#' Requires the `nonNAs` attribute on `ignitionFitRTM` when fitting ignition.
+#' Requires the `nonNAs` attribute on `ignitionFitRTM` when fitting ignition. When `sim$studyArea`
+#' is supplied, also reads the shared ignition/escape fit ledger with `CacheGeo` into
+#' `sim$ignitionFitPreRun`, so `run` can tell whether this polygon already has a fit.
 #'
 #' @param sim A `simList`.
-#' @return `sim`, invisibly, unchanged.
+#' @return `sim`, invisibly, unchanged except for `sim$ignitionFitPreRun`.
 Init <- function(sim) {
 
   if ("ignition" %in% P(sim)$whichProcessesToFit) {
@@ -142,17 +176,37 @@ Init <- function(sim) {
     stop("please review P(sim)$whichProcesesToFit...ensure lower-case")
   }
 
+  if (!is.null(sim$studyArea)) {
+    sa <- sim$studyArea
+    if (inherits(sa, "SpatVector")) sa <- sf::st_as_sf(sa)
+    sim$ignitionFitPreRun <- CacheGeo(
+      cloudFolderID = Par$ignitionFitGoogleDriveFolder,
+      targetFile = ignitionLedgerWriteFile(Par$ignitionFitFilename, ignitionFitYears(sim)),
+      domain = sa, action = "nothing", useCache = FALSE,
+      ## `purge` re-downloads from the cloud copy; with no cloud folder there is nothing to
+      ## re-download, and `prepInputs()` then cannot find the local file it just set aside.
+      destinationPath = inputPath(sim), bufferOK = TRUE,
+      purge = if (is.null(Par$ignitionFitGoogleDriveFolder)) FALSE else 7)
+  }
+
   return(invisible(sim))
 }
 
 #' Fit the requested processes (the `run` event)
 #'
-#' Calls `buildModelsFitModels()` for each of `P(sim)$whichProcessesToFit` and assigns the
-#' results to `sim$fireSense_IgnitionFitted` and/or `sim$fireSense_EscapeFitted`.
+#' When `sim$studyArea` is supplied and the ledger already has a row for `sim$.ELFind` (and
+#' `refitExisting` is not `TRUE`), the stored `fireSense_IgnitionFitted`/`fireSense_EscapeFitted`
+#' are used and the fit is skipped. Otherwise calls `buildModelsFitModels()` for each of
+#' `P(sim)$whichProcessesToFit`, assigns the results to `sim$fireSense_IgnitionFitted` and/or
+#' `sim$fireSense_EscapeFitted`, and, when `sim$studyArea` is supplied, writes them to the ledger.
 #'
 #' @param sim A `simList`.
 #' @return `sim`, invisibly.
 frequencyFitRun <- function(sim) {
+
+  if (!isTRUE(Par$refitExisting) && hasPreRunIgnitionFitForThisPolygon(sim)) {
+    return(invisible(useExistingIgnitionFit(sim)))
+  }
 
   #TODO: make cache smart by digest args in advance
   whichProcessesToFit <- P(sim)$whichProcessesToFit
@@ -164,6 +218,10 @@ frequencyFitRun <- function(sim) {
 
   # put to sim sim$fireSense_IgnitionFitted, sim$fireSense_EscapeFitted
   list2env(fireSense_FittedModels, envir = envir(sim))
+
+  if (!is.null(sim$studyArea))
+    sim <- writeIgnitionLedgerRow(sim)
+
   return(invisible(sim))
 }
 
