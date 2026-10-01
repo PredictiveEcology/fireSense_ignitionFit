@@ -5,5 +5,5 @@
 .DS_Store
 .quarto
 
-fireSense_IgnitionFit_cache/
-fireSense_IgnitionFit2.Rmd
+fireSense_ignitionFit_cache/
+fireSense_ignitionFit2.Rmd

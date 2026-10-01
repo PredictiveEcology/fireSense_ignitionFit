@@ -1,5 +1,5 @@
 defineModule(sim, list(
-  name = "fireSense_IgnitionFit",
+  name = "fireSense_ignitionFit",
   description = paste("Fit statistical models that can be used to parameterize (calibrate)",
                       "the fire ignition component of landscape fire models (e.g. fireSense)."),
   keywords = c("fire frequency", "optimization", "additive property", "poisson",
@@ -11,19 +11,19 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", email = "achubaty@for-cast.ca", role = "ctb")
   ),
   childModules = character(),
-  version = list(fireSense_IgnitionFit = "1.0.3.9000"),
+  version = list(fireSense_ignitionFit = "1.1.1"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = NA_character_, # e.g., "year",
   citation = list("citation.bib"),
-  documentation = list("README.txt", "fireSense_IgnitionFit.Rmd"),
+  documentation = list("README.txt", "fireSense_ignitionFit.Rmd"),
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9047)",
-                  "ggplot2", "ggpubr", "magrittr",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9077)",
+                  "ggplot2", "ggpubr", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
-                  "PredictiveEcology/reproducible@development (>= 3.2.1.9025)", # CacheGeo, for the shared fit ledger
+                  "PredictiveEcology/reproducible@development (>= 3.2.1.9058)", # CacheGeo appends to a ledger holding xgboost models
                   "RhpcBLASctl", "sf",
                   "caret", "pROC",
                   "PredictiveEcology/SHAPforxgboost (>= 0.1.3.9001)", "xgboost (>=3.0.0)", "lightgbm", # install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
@@ -126,7 +126,7 @@ defineModule(sim, list(
 #' @param eventType One of `init`, `checkData`, `run`.
 #' @param debug Unused.
 #' @return `sim`, invisibly.
-doEvent.fireSense_IgnitionFit = function(sim, eventTime, eventType, debug = FALSE) {
+doEvent.fireSense_ignitionFit = function(sim, eventTime, eventType, debug = FALSE) {
   moduleName <- current(sim)$moduleName
 
   switch(
@@ -179,14 +179,8 @@ Init <- function(sim) {
   if (!is.null(sim$studyArea)) {
     sa <- sim$studyArea
     if (inherits(sa, "SpatVector")) sa <- sf::st_as_sf(sa)
-    sim$ignitionFitPreRun <- CacheGeo(
-      cloudFolderID = Par$ignitionFitGoogleDriveFolder,
-      targetFile = ignitionLedgerWriteFile(Par$ignitionFitFilename, ignitionFitYears(sim)),
-      domain = sa, action = "nothing", useCache = FALSE,
-      ## `purge` re-downloads from the cloud copy; with no cloud folder there is nothing to
-      ## re-download, and `prepInputs()` then cannot find the local file it just set aside.
-      destinationPath = inputPath(sim), bufferOK = TRUE,
-      purge = if (is.null(Par$ignitionFitGoogleDriveFolder)) FALSE else 7)
+    sim$ignitionFitPreRun <- ignitionLedgerCacheGeo(sim, domain = sa, action = "nothing",
+                                                    useCache = FALSE, bufferOK = TRUE)
   }
 
   return(invisible(sim))

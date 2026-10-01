@@ -1,22 +1,18 @@
-# fireSense_IgnitionFit (development version)
+# fireSense_ignitionFit (development version)
+
+- Ignition and escape fits are shared through a cloud, geo-keyed ledger, as `fireSense_spreadFit` does its fits. When `studyArea` and `.ELFind` are supplied, the module reads the ledger (new parameters `ignitionFitGoogleDriveFolder` and `ignitionFitFilename`) for the study area. If a row exists for this polygon, its `fireSense_IgnitionFitted` and `fireSense_EscapeFitted` are used and the fit is skipped. Otherwise the fit runs and its result is written to the ledger. New parameter `refitExisting` fits even when the ledger has a row. Without `studyArea` nothing changes. New output `ignitionFitPreRun`, the ledger rows read for `studyArea`.
+- The ledger row drops `modelList$model$rocs` (the per-fold `pROC::roc()` curves, unused by `predict()`), so rows stay small.
+- Floors: `fireSenseUtils` (>= 0.2.3.9077, for `ignitionFitFilenameFor()` and `ignitionFitAdditionalColNamesTxt`), `reproducible` (>= 3.2.1.9058, whose `CacheGeo()` can append to a ledger that holds xgboost models).
+
+# fireSense_ignitionFit 1.1.1
+
+- reqdPkgs now lists `purrr` and `RColorBrewer`, which the module calls with `::` but did not list. Version 1.1.1.
+
+# fireSense_ignitionFit 1.1.0
+
+- Renamed from `fireSense_IgnitionFit` to `fireSense_ignitionFit` (module naming convention `<model>_<camelCaseComponent>`); projects must rename the module and its `params` key. The class `fireSense_IgnitionFit` and the objects `fireSense_IgnitionFitted`, `fireSense_IgnitionFittedList` and `fireSense_IgnitionPredicted` keep their names. Version 1.1.0.
 
 - New parameter `.studyAreaName` (default `NA`), the name PredictiveEcology modules use for the study area. This module does not use it yet.
-
-# fireSense_IgnitionFit 1.0.3
-
-- Ignition and escape fits are now shared through a cloud, geo-keyed ledger, mirroring
-  `fireSense_SpreadFit`. When `studyArea` and `.ELFind` are supplied, `run` reads the ledger
-  (`ignitionFitGoogleDriveFolder`/`ignitionFitFilename`, new parameters) for the study area; if a
-  row already exists for this polygon, the stored `fireSense_IgnitionFitted`/`fireSense_EscapeFitted`
-  are used and the fit is skipped. Otherwise the fit runs as before and, when `studyArea` is
-  supplied, the result is written to the ledger. New parameter `refitExisting` forces a fit even
-  when the ledger already has a row, as in `fireSense_SpreadFit`. Without `studyArea` (e.g. the
-  existing test suite, or standalone use), nothing changes: the module fits every time and never
-  touches the ledger. New output `ignitionFitPreRun`, the ledger rows read for `studyArea`.
-- The ledger row strips `modelList$model$rocs` (the per-fold `pROC::roc()` diagnostic curves,
-  unused by `predict()`) before writing, so ledger rows stay small.
-- `fireSenseUtils` floor raised to 0.2.3.9047 (`ignitionFitFilenameFor()`, `latestIgnitionFits()`)
-  and `reproducible` floor raised to 3.2.1.9025 (`CacheGeo()`), matching `fireSense_ELFs`.
 
 # fireSense_IgnitionFit 1.0.2
 

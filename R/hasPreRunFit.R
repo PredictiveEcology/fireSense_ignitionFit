@@ -25,7 +25,7 @@ hasPreRunIgnitionFitForThisPolygon <- function(sim) {
 useExistingIgnitionFit <- function(sim) {
   row <- sim$ignitionFitPreRun[which(as.character(sim$ignitionFitPreRun$polygonID) ==
                                       as.character(sim$.ELFind))[1], ]
-  message("fireSense_IgnitionFit: ledger already holds ignition/escape fits for polygon ",
+  message("fireSense_ignitionFit: ledger already holds ignition/escape fits for polygon ",
           sim$.ELFind, "; using those instead of fitting.")
   sim$fireSense_IgnitionFitted <- row[[fireSenseUtils::ignitionFitAdditionalColNamesTxt[1]]][[1]]
   sim$fireSense_EscapeFitted <- row[[fireSenseUtils::ignitionFitAdditionalColNamesTxt[2]]][[1]]

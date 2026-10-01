@@ -98,6 +98,18 @@ test_that("a stored ledger fit is used instead of refitting, and predict() still
   expect_equal(as.numeric(tapply(pred, raw$ignitions, mean)), c(0, 1, 2), tolerance = 0.1)
 })
 
+test_that("another polygon's fit is appended to the ledger and the first polygon's row is kept", {
+  paths <- localLedgerPaths()
+  commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
+  next_to <- terra::vect(terra::ext(10000, 12500, 0, 2500), crs = "EPSG:3005")
+  runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
+  sim2 <- runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.2", studyArea = next_to))
+  ledger <- readRDS(file.path(paths$inputPath, "fireSenseIgnitionParams_2001-2004_xgboost.rds"))
+  expect_setequal(as.character(ledger$polygonID), c("6.1.1", "6.1.2"))
+  expect_equal(ledger$fireSense_IgnitionFitted[[which(ledger$polygonID == "6.1.2")]],
+               sim2$ignitionFitPreRun$fireSense_IgnitionFitted[[which(sim2$ignitionFitPreRun$polygonID == "6.1.2")]])
+})
+
 test_that("refitExisting fits again even when the ledger already has a row", {
   paths <- localLedgerPaths()
   sa <- studyAreaToy()
@@ -111,6 +123,9 @@ test_that("refitExisting fits again even when the ledger already has a row", {
   sim2 <- runIgnitionModule(paths, params = c(commonParams, list(refitExisting = TRUE)),
                             objects = list(.ELFind = "6.1.1", studyArea = sa))
   expect_identical(names(sim2$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs"))
+  ## the refit replaces the polygon's row; it does not add a second one
+  ledger <- readRDS(file.path(paths$inputPath, "fireSenseIgnitionParams_2001-2004_xgboost.rds"))
+  expect_identical(as.character(ledger$polygonID), "6.1.1")
 })
 
 test_that("writeIgnitionLedgerRow stops on an invalid .ELFind, as fireSense_SpreadFit does", {

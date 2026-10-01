@@ -31,7 +31,7 @@ writeIgnitionLedgerRow <- function(sim) {
   polygonID <- sim$.ELFind
   if (!is.character(polygonID) || length(polygonID) != 1L ||
       is.na(polygonID) || !nzchar(polygonID))
-    stop("fireSense_IgnitionFit: `sim$.ELFind` must be a single non-empty character ",
+    stop("fireSense_ignitionFit: `sim$.ELFind` must be a single non-empty character ",
          "identifying the polygon being fit; got: ",
          paste(format(polygonID), collapse = ", "))
 
@@ -49,17 +49,26 @@ writeIgnitionLedgerRow <- function(sim) {
   ledgerRow <- dplyr::mutate(saHere, df)
 
   le <- function(x) {x}
-  ## `purge` re-downloads from the cloud copy; with no cloud folder there is nothing to
-  ## re-download, and `prepInputs()` then cannot find the local file it just set aside.
-  purgeHere <- if (is.null(Par$ignitionFitGoogleDriveFolder)) FALSE else 7
-  sim$ignitionFitPreRun <- CacheGeo(
+  sim$ignitionFitPreRun <- ignitionLedgerCacheGeo(sim, domain = saHere, FUN = le(ledgerRow),
+                                                  le = le, ledgerRow = ledgerRow, action = "update")
+  invisible(sim)
+}
+
+#' The one place the ignition/escape ledger is read or written through `CacheGeo()`
+#'
+#' Both the read in `Init()` and the write in `writeIgnitionLedgerRow()` come here, so moving the
+#' ledger to another reproducible API changes this function only.
+#'
+#' @param sim A `simList`.
+#' @param ... Passed on to `CacheGeo()`: `domain`, `action`, and, for a write, `FUN`.
+#' @return What `CacheGeo()` returns.
+ignitionLedgerCacheGeo <- function(sim, ...) {
+  CacheGeo(
     cloudFolderID = Par$ignitionFitGoogleDriveFolder,
     targetFile = ignitionLedgerWriteFile(Par$ignitionFitFilename, ignitionFitYears(sim)),
-    domain = saHere,
     destinationPath = inputPath(sim),
-    FUN = le(ledgerRow),
-    le = le, ledgerRow = ledgerRow, purge = purgeHere,
-    action = "update")
-
-  invisible(sim)
+    ## `purge` re-downloads from the cloud copy; with no cloud folder there is nothing to
+    ## re-download, and `prepInputs()` then cannot find the local file it just set aside.
+    purge = if (is.null(Par$ignitionFitGoogleDriveFolder)) FALSE else 7,
+    ...)
 }

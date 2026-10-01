@@ -8,7 +8,7 @@ sourceModule <- function() {
   e$defineModule <- function(...) invisible(NULL)
   e$defineParameter <- e$expectsInput <- e$createsOutput <- function(...) NULL
   suppressWarnings(sys.source(
-    testthat::test_path("..", "..", "fireSense_IgnitionFit.R"), envir = e, keep.source = FALSE))
+    testthat::test_path("..", "..", "fireSense_ignitionFit.R"), envir = e, keep.source = FALSE))
   e
 }
 
