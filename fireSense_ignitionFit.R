@@ -549,7 +549,9 @@ functionNameHelper <- function(..., sep = "_") {
 #' @param jitter Jitter width on x; the height is `jitter / 7000`.
 #' @param colors Named vector of colours, one per covariate.
 #' @param fuelOrClimateInd Index into `colors` and `labels` of the covariates in this group.
-#' @param igOrEsc `"ignition"` or `"escape"`; used in the y-axis label.
+#' @param igOrEsc `"ignition"` or `"escape"`; used in the y-axis label. The models are Tweedie
+#'   (`reg:tweedie`) fits to counts, so the y-axis is an expected count: ignitions per pixel-year,
+#'   or escapes per ignited pixel-year.
 #' @return A ggplot.
 plotPredictions <- function(df, fuelOrClimate, labels, value, jitter, colors, fuelOrClimateInd, igOrEsc) {
 
@@ -560,34 +562,34 @@ plotPredictions <- function(df, fuelOrClimate, labels, value, jitter, colors, fu
     geom_smooth(span = 1) +
     scale_color_manual(aesthetics = "colour", values = colors[fuelOrClimateInd],
                        labels = names(labels)[fuelOrClimateInd],
-                       name = "Climate:",
+                       name = paste0(fuelOrClimate, ":"),
                        guide = guide_legend(reverse = TRUE, title.position = "top", order = 0)) +
     ggplot2::xlab(paste0("Scaled, centred")) +
-    ggplot2::ylab(paste0("Predicted probability of ", igOrEsc)) +
+    ggplot2::ylab(paste0("Predicted ", igOrEsc, "s per ", if (igOrEsc == "escape") "ignited ", "pixel-year")) +
     theme_bw()
 }
 
 #' Build the response plots for the fitted xgboost models
 #'
-#' For each fold and covariate, predicts along the covariate's range (limited to -2 to 2, in
-#' steps of 0.1, in standardised units) with every other covariate at 0, its mean.
+#' For each fold and covariate, predicts along the covariate's whole observed range (minimum to
+#' maximum of the standardised data, `nGrid` equally spaced points, so the cost does not grow with
+#' the length of the covariate's tail) with every other covariate at 0, its mean.
 #'
 #' @param modelOnly List of the per-fold xgboost models.
 #' @param dat data.table of standardised covariates used for the fit.
 #' @param igOrEsc `"ignition"` or `"escape"`.
+#' @param nGrid Number of points per covariate at which to predict.
 #' @return List of two ggplots, `Climate` and `Fuel`. Covariates whose names match
 #'   `CMD|light|positiveCG` are the climate ones.
-setupPlots <- function(modelOnly, dat, igOrEsc) {
+setupPlots <- function(modelOnly, dat, igOrEsc, nGrid = 50) {
 
   cnNoIgnNoEsc <- colnames(dat) |> setdiff(c(fireSenseUtils::ignitionsTxt, fireSenseUtils::escapesTxt, "year", "pixelID"))
   dat <- dat[, ..cnNoIgnNoEsc]
 
   df <- Map(fold = seq_along(modelOnly), function(fold) {
     df <- Map(nam = cnNoIgnNoEsc, function(nam) {
-      rr <- range(dat[, ..nam], na.rm = TRUE) * 10
-      rr[1] <- floor(rr[1])
-      rr[2] <- ceiling(rr[2])
-      df1 <- data.frame(pmax(-20,pmin(20,(rr[1]:rr[2])))/10) |> setNames(nam)
+      rr <- range(dat[[nam]], na.rm = TRUE)
+      df1 <- data.frame(seq(rr[1], rr[2], length.out = nGrid)) |> setNames(nam)
       cnHere <- setdiff(cnNoIgnNoEsc, nam)
       df0 <- lapply(cnHere, function(x) list(0)) |> data.frame() |> setNames(cnHere)
       df <- data.frame(df1, df0)

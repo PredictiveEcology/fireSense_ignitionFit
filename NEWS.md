@@ -1,3 +1,7 @@
+# fireSense_ignitionFit (development version)
+
+- The response-curve figures now cover each covariate's whole observed range (50 points from its minimum to its maximum), not just -2 to 2 standardised units. The fuel panel's legend says "Fuel:" (it said "Climate:"), and the y axis reads "Predicted ignitions per pixel-year" or "Predicted escapes per ignited pixel-year" rather than "probability", because the Tweedie models predict a count.
+
 # fireSense_ignitionFit 1.1.2
 
 - Ignition and escape fits are shared through a cloud, geo-keyed ledger, as `fireSense_spreadFit` does its fits. When `studyArea` and `.ELFind` are supplied, the module reads the ledger (new parameters `ignitionFitGoogleDriveFolder` and `ignitionFitFilename`) for the study area. If a row exists for this polygon, its `fireSense_IgnitionFitted` and `fireSense_EscapeFitted` are used and the fit is skipped. Otherwise the fit runs and its result is written to the ledger. New parameter `refitExisting` fits even when the ledger has a row. Without `studyArea` nothing changes. New output `ignitionFitPreRun`, the ledger rows read for `studyArea`.
