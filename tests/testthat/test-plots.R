@@ -22,34 +22,44 @@ test_that("setupPlots predicts along each covariate with the others at their mea
   expect_setequal(unique(clim$variable), c("CMDsm", "lightning"))
   expect_setequal(unique(fuel$variable), c("youngAge", "Pice_mar"))
 
-  ## youngAge is 0/1 with mean 0.5, so standardised it is +-0.9987: the x values run from
-  ## floor(-9.987) / 10 = -1 to ceiling(9.987) / 10 = 1 in steps of 0.1, once per fold
+  ## youngAge is 0/1 with mean 0.5, so standardised it is +-0.9987: the x values run over exactly
+  ## that range, on 50 points per fold
   ya <- fuel[fuel$variable == "youngAge", ]
-  expect_equal(sort(unique(ya$value)), seq(-1, 1, by = 0.1))
-  expect_identical(nrow(ya), 2L * 21L)
-  ## CMDsm spans 0..10, mean 5, sd 2.913: +-1.716 -> -1.8 .. 1.8
+  yaRange <- range(inp$dat$youngAge)
+  vals <- seq(yaRange[1], yaRange[2], length.out = 50)
+  expect_equal(sort(unique(ya$value)), vals)
+  expect_identical(nrow(ya), 2L * 50L)
+  ## CMDsm spans 0..10, mean 5, sd 2.913: +-1.716
   cm <- clim[clim$variable == "CMDsm", ]
-  expect_equal(range(cm$value), c(-1.8, 1.8))
+  expect_equal(range(cm$value), range(inp$dat$CMDsm))
 
   ## predictions: along youngAge, 1 + 3 * value (fold 1) and 2 + 6 * value (fold 2)
-  expect_equal(sort(ya$predictedProb), sort(c(1 + 3 * seq(-1, 1, by = 0.1), 2 + 6 * seq(-1, 1, by = 0.1))))
+  expect_equal(sort(ya$predictedProb), sort(c(1 + 3 * vals, 2 + 6 * vals)))
   ## along CMDsm, 1 + 2 * value and 2 + 4 * value; along Pice_mar, which has no effect, 1 and 2
-  expect_equal(range(cm$predictedProb), c(2 + 4 * -1.8, 2 + 4 * 1.8))
+  expect_equal(range(cm$predictedProb), 2 + 4 * range(inp$dat$CMDsm))
   expect_equal(sort(unique(round(fuel$predictedProb[fuel$variable == "Pice_mar"], 8))), c(1, 2))
-  expect_identical(plots$Fuel$labels$y, "Predicted probability of ignition")
+  expect_identical(plots$Fuel$labels$y, "Predicted ignitions per pixel-year")
 })
 
-test_that("setupPlots limits the x axis to +-2 standard deviations", {
+test_that("setupPlots covers the whole range of the data, not just +-2 standard deviations", {
   inp <- plotInputs()
   data.table::set(inp$dat, 1L, "Pice_mar", 7.34)                 # an outlier, 7 sd from the mean
   plots <- setupPlots(inp$models["Fold1"], dat = inp$dat, igOrEsc = "escape")
   fuel <- as.data.frame(plots$Fuel$data)
   pm <- fuel[fuel$variable == "Pice_mar", ]
-  ## Pice_mar is 0..96, mean 47.9, sd 28.0: the minimum is -1.71, and floor(-17.1) / 10 = -1.8
-  expect_equal(range(pm$value), c(-1.8, 2))
-  ## the sequence runs to ceiling(73.4) = 74 tenths; 20, 21, ..., 74 are all set to 2: 55 rows
-  expect_identical(sum(pm$value == 2), 55L)
-  expect_identical(plots$Climate$labels$y, "Predicted probability of escape")
+  expect_equal(range(pm$value), range(inp$dat$Pice_mar))
+  expect_gt(max(pm$value), 7)
+  expect_identical(nrow(pm), 50L)                                # cost does not grow with the range
+  expect_identical(plots$Climate$labels$y, "Predicted escapes per ignited pixel-year")
+})
+
+test_that("the fuel panel's legend says Fuel and the climate panel's says Climate", {
+  inp <- plotInputs()
+  plots <- setupPlots(inp$models, dat = inp$dat, igOrEsc = "ignition")
+  legendTitle <- function(p) p$scales$get_scales("colour")$name
+  expect_identical(legendTitle(plots$Fuel), "Fuel:")
+  expect_identical(legendTitle(plots$Climate), "Climate:")
+  expect_false(grepl("probability", plots$Fuel$labels$y, ignore.case = TRUE))
 })
 
 test_that("plotPredictions plots one group of covariates in the colours given", {
@@ -67,14 +77,17 @@ test_that("plotPredictions plots one group of covariates in the colours given", 
   expect_identical(as.character(unique(p$data$varFac)), c("Pice_mar", "youngAge"))
   expect_identical(nrow(p$data), 6L)
   expect_identical(p$labels$x, "Scaled, centred")
-  expect_identical(p$labels$y, "Predicted probability of escape")
+  expect_identical(p$labels$y, "Predicted escapes per ignited pixel-year")
   expect_identical(unname(vapply(p$layers, function(l) class(l$geom)[1], character(1))),
-                   c("GeomPoint", "GeomPoint", "GeomSmooth"))   # points, jittered points, smooth
+                   c("GeomPoint", "GeomSmooth"))   # each prediction drawn once, and the smooth
 
   ## the points are drawn at the data values, each covariate in its own colour
   pts <- suppressWarnings(ggplot2::ggplot_build(p))$data[[1]]   # loess warns on 3 points
-  expect_equal(pts$x, c(-1, 0, 1, -1, 0, 1))
-  expect_equal(pts$y, c(0.5, 0.5, 0.5, 0.9, 0.8, 0.7))
+  expect_equal(pts$x, c(-1, 0, 1, -1, 0, 1), tolerance = 0.05)   # x only jittered, by at most `jitter`
+  expect_identical(pts$y, c(0.5, 0.5, 0.5, 0.9, 0.8, 0.7))        # y is the prediction, no noise added
+  ## no layer other than the smooth draws y values that are not the predictions
+  built <- suppressWarnings(ggplot2::ggplot_build(p))$data
+  for (l in built[-length(built)]) expect_identical(l$y, c(0.5, 0.5, 0.5, 0.9, 0.8, 0.7))
   expect_identical(pts$colour, rep(c("#00FF00", "#0000FF"), each = 3))
 
   clim <- plotPredictions(df, fuelOrClimate = "Climate", labels = labels, jitter = 0.05,
