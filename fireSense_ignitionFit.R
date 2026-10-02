@@ -546,7 +546,7 @@ functionNameHelper <- function(..., sep = "_") {
 #' @param fuelOrClimate `"Fuel"` or `"Climate"`: the group of covariates to plot.
 #' @param labels Named character vector giving the group of each covariate.
 #' @param value Unused; `value` in the plot is the column of `df`.
-#' @param jitter Jitter width on x; the height is `jitter / 7000`.
+#' @param jitter Jitter width on x, so the folds, which share x values, do not overlap exactly. y is never jittered.
 #' @param colors Named vector of colours, one per covariate.
 #' @param fuelOrClimateInd Index into `colors` and `labels` of the covariates in this group.
 #' @param igOrEsc `"ignition"` or `"escape"`; used in the y-axis label. The models are Tweedie
@@ -557,8 +557,7 @@ plotPredictions <- function(df, fuelOrClimate, labels, value, jitter, colors, fu
 
   ggplot(df[varFac %in% names(labels)[labels %in% fuelOrClimate]],
          aes(x = value, y = predictedProb, group = varFac, col = varFac)) +
-    geom_point() +
-    geom_jitter(width = jitter, height = jitter/7e3) +
+    geom_point(position = position_jitter(width = jitter, height = 0)) +
     geom_smooth(span = 1) +
     scale_color_manual(aesthetics = "colour", values = colors[fuelOrClimateInd],
                        labels = names(labels)[fuelOrClimateInd],

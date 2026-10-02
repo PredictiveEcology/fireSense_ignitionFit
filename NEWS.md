@@ -1,6 +1,6 @@
 # fireSense_ignitionFit (development version)
 
-- The response-curve figures now cover each covariate's whole observed range (50 points from its minimum to its maximum), not just -2 to 2 standardised units. The fuel panel's legend says "Fuel:" (it said "Climate:"), and the y axis reads "Predicted ignitions per pixel-year" or "Predicted escapes per ignited pixel-year" rather than "probability", because the Tweedie models predict a count.
+- The response-curve figures now cover each covariate's whole observed range (50 points from its minimum to its maximum), not just -2 to 2 standardised units. The fuel panel's legend says "Fuel:" (it said "Climate:"), and the y axis reads "Predicted ignitions per pixel-year" or "Predicted escapes per ignited pixel-year" rather than "probability", because the Tweedie models predict a count. Each fold's prediction is drawn once, with x jitter only (the folds share x values); the y jitter, which was large relative to ignition rates near 3e-5, is gone.
 
 # fireSense_ignitionFit 1.1.2
 

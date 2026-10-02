@@ -79,12 +79,15 @@ test_that("plotPredictions plots one group of covariates in the colours given", 
   expect_identical(p$labels$x, "Scaled, centred")
   expect_identical(p$labels$y, "Predicted escapes per ignited pixel-year")
   expect_identical(unname(vapply(p$layers, function(l) class(l$geom)[1], character(1))),
-                   c("GeomPoint", "GeomPoint", "GeomSmooth"))   # points, jittered points, smooth
+                   c("GeomPoint", "GeomSmooth"))   # each prediction drawn once, and the smooth
 
   ## the points are drawn at the data values, each covariate in its own colour
   pts <- suppressWarnings(ggplot2::ggplot_build(p))$data[[1]]   # loess warns on 3 points
-  expect_equal(pts$x, c(-1, 0, 1, -1, 0, 1))
-  expect_equal(pts$y, c(0.5, 0.5, 0.5, 0.9, 0.8, 0.7))
+  expect_equal(pts$x, c(-1, 0, 1, -1, 0, 1), tolerance = 0.05)   # x only jittered, by at most `jitter`
+  expect_identical(pts$y, c(0.5, 0.5, 0.5, 0.9, 0.8, 0.7))        # y is the prediction, no noise added
+  ## no layer other than the smooth draws y values that are not the predictions
+  built <- suppressWarnings(ggplot2::ggplot_build(p))$data
+  for (l in built[-length(built)]) expect_identical(l$y, c(0.5, 0.5, 0.5, 0.9, 0.8, 0.7))
   expect_identical(pts$colour, rep(c("#00FF00", "#0000FF"), each = 3))
 
   clim <- plotPredictions(df, fuelOrClimate = "Climate", labels = labels, jitter = 0.05,
