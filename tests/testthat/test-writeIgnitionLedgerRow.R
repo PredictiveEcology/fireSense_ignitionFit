@@ -156,3 +156,49 @@ test_that("stripFittedForLedger drops rocs, shrinks the object, and predict() is
 
   expect_null(stripFittedForLedger(NULL))
 })
+
+## A covariate set whose `Pice_mar` column has been renamed, as when land-cover groups are merged
+## under a new name: the stored fit's features are no longer all among the covariates.
+renamedCovariates <- function(escapes = FALSE) {
+  dt <- makeIgnitionCovariates(escapes = escapes)
+  data.table::setnames(dt, "Pice_mar", "Pice_new")
+  dt
+}
+
+test_that("storedFitIsCompatible: all stored features present -> TRUE; one absent -> FALSE, named", {
+  paths <- localLedgerPaths()
+  sim <- runIgnitionModule(paths, params = list(.plots = NA), objects = list(.ELFind = "6.1.1"))
+  for (type in c("ignition", "escape")) {
+    fitted <- if (type == "ignition") sim$fireSense_IgnitionFitted else sim$fireSense_EscapeFitted
+    covs <- makeIgnitionCovariates(escapes = type == "escape")
+    expect_true(storedFitIsCompatible(fitted, covs, "6.1.1", type))
+    ## a current column the model never saw does not stop reuse
+    covs2 <- data.table::copy(covs)
+    data.table::set(covs2, NULL, "extraCol", 1)
+    expect_true(storedFitIsCompatible(fitted, covs2, "6.1.1", type))
+    expect_message(
+      ok <- storedFitIsCompatible(fitted, renamedCovariates(type == "escape"), "6.1.1", type),
+      "6.1.1.*Pice_mar.*Pice_new")
+    expect_false(ok)
+  }
+  expect_false(storedFitIsCompatible(NULL, makeIgnitionCovariates(), "6.1.1", "ignition"))
+})
+
+test_that("a stored ledger fit whose features are missing from the covariates is refitted and replaced", {
+  paths <- localLedgerPaths()
+  sa <- studyAreaToy()
+  commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
+  runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = sa))
+
+  sim2 <- runIgnitionModule(paths, params = commonParams,
+                            objects = list(.ELFind = "6.1.1", studyArea = sa,
+                                           fireSense_ignitionCovariates = renamedCovariates(),
+                                           fireSense_escapeCovariates = renamedCovariates(escapes = TRUE)))
+  for (fitted in list(sim2$fireSense_IgnitionFitted, sim2$fireSense_EscapeFitted))
+    expect_setequal(stats::variable.names(fitted$modelList$model$Fold1),
+                    c("CMDsm", "lightning", "Pice_new", "youngAge"))
+  ## the new fit replaced the polygon's row
+  ledger <- readRDS(file.path(paths$inputPath, "fireSenseIgnitionParams_2001-2004_xgboost.rds"))
+  expect_identical(as.character(ledger$polygonID), "6.1.1")
+  expect_true("Pice_new" %in% stats::variable.names(ledger$fireSense_IgnitionFitted[[1]]$modelList$model$Fold1))
+})

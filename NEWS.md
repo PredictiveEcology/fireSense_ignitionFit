@@ -1,3 +1,7 @@
+# fireSense_ignitionFit (development version)
+
+- A fit stored in the ledger is reused only if its features (the xgboost boosters' `variable.names()`) are all among the current covariate columns, for each process in `whichProcessesToFit`. Otherwise the module says which features are missing and fits again, replacing the ledger row, as with `refitExisting = TRUE`. Before, a stored fit made with older covariates (e.g. non-forest groups since merged) was reused and `fireSense_ignitionPredict` failed on the missing columns. `runXGBOOST()` and the check share `xgbFeatureNames()`.
+
 # fireSense_ignitionFit 1.1.2
 
 - Ignition and escape fits are shared through a cloud, geo-keyed ledger, as `fireSense_spreadFit` does its fits. When `studyArea` and `.ELFind` are supplied, the module reads the ledger (new parameters `ignitionFitGoogleDriveFolder` and `ignitionFitFilename`) for the study area. If a row exists for this polygon, its `fireSense_IgnitionFitted` and `fireSense_EscapeFitted` are used and the fit is skipped. Otherwise the fit runs and its result is written to the ledger. New parameter `refitExisting` fits even when the ledger has a row. Without `studyArea` nothing changes. New output `ignitionFitPreRun`, the ledger rows read for `studyArea`.
