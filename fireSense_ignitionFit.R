@@ -189,8 +189,9 @@ Init <- function(sim) {
 #' Fit the requested processes (the `run` event)
 #'
 #' When `sim$studyArea` is supplied and the ledger already has a row for `sim$.ELFind` (and
-#' `refitExisting` is not `TRUE`), the stored `fireSense_IgnitionFitted`/`fireSense_EscapeFitted`
-#' are used and the fit is skipped. Otherwise calls `buildModelsFitModels()` for each of
+#' `refitExisting` is not `TRUE`) and the stored models' features are all among the current
+#' covariate columns (`useExistingFitIsCompatible()`), the stored
+#' `fireSense_IgnitionFitted`/`fireSense_EscapeFitted` are used and the fit is skipped. Otherwise calls `buildModelsFitModels()` for each of
 #' `P(sim)$whichProcessesToFit`, assigns the results to `sim$fireSense_IgnitionFitted` and/or
 #' `sim$fireSense_EscapeFitted`, and, when `sim$studyArea` is supplied, writes them to the ledger.
 #'
@@ -198,7 +199,8 @@ Init <- function(sim) {
 #' @return `sim`, invisibly.
 frequencyFitRun <- function(sim) {
 
-  if (!isTRUE(Par$refitExisting) && hasPreRunIgnitionFitForThisPolygon(sim)) {
+  if (!isTRUE(Par$refitExisting) && hasPreRunIgnitionFitForThisPolygon(sim) &&
+      useExistingFitIsCompatible(sim)) {
     return(invisible(useExistingIgnitionFit(sim)))
   }
 
@@ -387,8 +389,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   colOrder <- sample(colOrder)
   dat3Forxgboost <- dat3Forxgboost[, ..colOrder]
   dig <- .robustDigest(dat3Forxgboost)
-  colnamesNoIgn <- grep(paste0(fireSenseUtils::ignitionsTxt,"|",fireSenseUtils::escapesTxt), colnames(dat3Forxgboost), value = TRUE, invert = TRUE) |>
-    sort() # make alphabetical
+  colnamesNoIgn <- xgbFeatureNames(colnames(dat3Forxgboost)) # alphabetical
   dat3ForxgboostNoIgn <- dat3Forxgboost[, ..colnamesNoIgn]
 
   ignOrEscapeColName <- grep(value = TRUE,type, colnames(dat3Forxgboost))
