@@ -23,14 +23,18 @@
 <url><loc>/reference/ignitionLedgerCacheGeo.html</loc></url>
 <url><loc>/reference/ignitionLedgerWriteFile.html</loc></url>
 <url><loc>/reference/index.html</loc></url>
+<url><loc>/reference/ledgerRowForThisPolygon.html</loc></url>
 <url><loc>/reference/meanRocMessage.html</loc></url>
 <url><loc>/reference/plotPredictions.html</loc></url>
 <url><loc>/reference/rocPerFold.html</loc></url>
 <url><loc>/reference/runXGBOOST.html</loc></url>
 <url><loc>/reference/setupPlots.html</loc></url>
 <url><loc>/reference/stopIfFoldsLackPositives.html</loc></url>
+<url><loc>/reference/storedFitIsCompatible.html</loc></url>
 <url><loc>/reference/stripFittedForLedger.html</loc></url>
+<url><loc>/reference/useExistingFitIsCompatible.html</loc></url>
 <url><loc>/reference/useExistingIgnitionFit.html</loc></url>
 <url><loc>/reference/writeIgnitionLedgerRow.html</loc></url>
+<url><loc>/reference/xgbFeatureNames.html</loc></url>
 </urlset>
 

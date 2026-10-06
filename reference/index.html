@@ -111,6 +111,10 @@
         </td>
         <td><p>The ledger file this run reads and writes</p></td>
       </tr><tr><td>
+          <p><code><a href="ledgerRowForThisPolygon.html">ledgerRowForThisPolygon()</a></code> </p>
+        </td>
+        <td><p>The ledger row for the polygon this run fits</p></td>
+      </tr><tr><td>
           <p><code><a href="meanRocMessage.html">meanRocMessage()</a></code> </p>
         </td>
         <td><p>Message reporting the mean AUC across folds</p></td>
@@ -135,9 +139,17 @@
         </td>
         <td><p>Stop when a cross-validation fold would train without any positive observation.</p></td>
       </tr><tr><td>
+          <p><code><a href="storedFitIsCompatible.html">storedFitIsCompatible()</a></code> </p>
+        </td>
+        <td><p>Can a stored fit predict with the covariates this run would fit with?</p></td>
+      </tr><tr><td>
           <p><code><a href="stripFittedForLedger.html">stripFittedForLedger()</a></code> </p>
         </td>
         <td><p>Strip a fitted model down to what <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> needs before it goes in the shared ledger</p></td>
+      </tr><tr><td>
+          <p><code><a href="useExistingFitIsCompatible.html">useExistingFitIsCompatible()</a></code> </p>
+        </td>
+        <td><p>Is every stored fit this run needs compatible with the current covariates?</p></td>
       </tr><tr><td>
           <p><code><a href="useExistingIgnitionFit.html">useExistingIgnitionFit()</a></code> </p>
         </td>
@@ -146,6 +158,10 @@
           <p><code><a href="writeIgnitionLedgerRow.html">writeIgnitionLedgerRow()</a></code> </p>
         </td>
         <td><p>Write this run's ignition and escape fits to the shared ledger</p></td>
+      </tr><tr><td>
+          <p><code><a href="xgbFeatureNames.html">xgbFeatureNames()</a></code> </p>
+        </td>
+        <td><p>Names of the features <code><a href="../reference/runXGBOOST.html">runXGBOOST()</a></code> gives the model</p></td>
       </tr></tbody></table></div>
 
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
