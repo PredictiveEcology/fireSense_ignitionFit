@@ -349,7 +349,7 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 
 #' Fit cross-validated xgboost models
 #'
-#' One model per fold, Tweedie objective, trained on all rows except the fold's, which are the
+#' One model per fold, Poisson objective (`count:poisson`), trained on all rows except the fold's, which are the
 #' `eval_set`. Folds come from `cvFolds()`. For `type = "escape"` only rows with
 #' `ignitions > 0` are used. The RNG seed is fixed, and restored on exit, so folds repeat and
 #' caching works.
@@ -405,9 +405,9 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
         digValInd <- .robustDigest(valInd) # should be eval set
 
         # xgboost objects do not save with `qs` ... must be `rds`
-        mTweedie <- xgboost(x = dat3ForxgboostNoIgn[wholeDataset], # should be whole set
+        mPoisson <- xgboost(x = dat3ForxgboostNoIgn[wholeDataset], # should be whole set
                             y = dat3Forxgboost[, get(ignOrEscapeColName)][wholeDataset],
-                            objective = "reg:tweedie",
+                            objective = "count:poisson",
                             nthread = 10,
                             eval_set = valInd, # should be keepEval
                             monitor_training = TRUE,
@@ -422,14 +422,14 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
                    cacheSaveFormat = "rds")
         # Predict probabilities
         valData <- dat3Forxgboost[valInd, ]
-        pred2 <- predict(mTweedie, valData)
+        pred2 <- predict(mPoisson, valData)
         if (!all(is.finite(pred2))) {
           stop(type, " cross-validation fold ", kFold, ": the model predicted ", sum(!is.finite(pred2)),
                " non-finite values out of ", length(pred2), call. = FALSE)
         }
         valData <- cbind(valData, predTweedie = pred2)
 
-        shap_values <- shap.values(mTweedie, dat3ForxgboostNoIgn) |>
+        shap_values <- shap.values(mPoisson, dat3ForxgboostNoIgn) |>
           Cache(omitArgs = formalArgs(shap.values),
                 .functionName = functionNameHelper("shap.values", type, kFold),
                 .cacheExtra = c(dig, digValInd, type))
@@ -440,7 +440,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
           Cache(omitArgs = formalArgs(shap.prep),
                 .functionName = functionNameHelper("shap.prep", type, kFold),
                 .cacheExtra = c(dig, digValInd, type))
-        list(valData = valData, mod = mTweedie, shap_long = shap_long)
+        list(valData = valData, mod = mPoisson, shap_long = shap_long)
       })
   )
   rocs <- rocPerFold(mm, ignOrEscapeColName)
@@ -550,8 +550,8 @@ functionNameHelper <- function(..., sep = "_") {
 #' @param jitter Jitter width on x, so the folds, which share x values, do not overlap exactly. y is never jittered.
 #' @param colors Named vector of colours, one per covariate.
 #' @param fuelOrClimateInd Index into `colors` and `labels` of the covariates in this group.
-#' @param igOrEsc `"ignition"` or `"escape"`; used in the y-axis label. The models are Tweedie
-#'   (`reg:tweedie`) fits to counts, so the y-axis is an expected count: ignitions per pixel-year,
+#' @param igOrEsc `"ignition"` or `"escape"`; used in the y-axis label. The models are Poisson
+#'   (`count:poisson`) fits to counts, so the y-axis is an expected count: ignitions per pixel-year,
 #'   or escapes per ignited pixel-year.
 #' @return A ggplot.
 plotPredictions <- function(df, fuelOrClimate, labels, value, jitter, colors, fuelOrClimateInd, igOrEsc) {
