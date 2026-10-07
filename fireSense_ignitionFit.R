@@ -427,7 +427,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
           stop(type, " cross-validation fold ", kFold, ": the model predicted ", sum(!is.finite(pred2)),
                " non-finite values out of ", length(pred2), call. = FALSE)
         }
-        valData <- cbind(valData, predTweedie = pred2)
+        valData <- cbind(valData, predPoisson = pred2)
 
         shap_values <- shap.values(mPoisson, dat3ForxgboostNoIgn) |>
           Cache(omitArgs = formalArgs(shap.values),
@@ -444,8 +444,8 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
       })
   )
   rocs <- rocPerFold(mm, ignOrEscapeColName)
-  tweedie <- aucPerFold(rocs)
-  print(meanRocMessage(tweedie))
+  aucs <- aucPerFold(rocs)
+  print(meanRocMessage(aucs))
   mm2 <- Map(m = mm, function(m) m$mod)
   mm2 <- append(mm2, list(rocs = rocs))
 
@@ -463,7 +463,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
 #' one outcome therefore reports no AUC and the fit stands.
 #'
 #' @param mm List with one element per fold, each holding `valData`: the validation rows with
-#'   the response and the prediction, `predTweedie`.
+#'   the response and the prediction, `predPoisson`.
 #' @param ignOrEscapeColName Name of the response column.
 #' @return List of `pROC::roc` objects; `NULL` for a fold with only one outcome.
 rocPerFold <- function(mm, ignOrEscapeColName) {
@@ -474,7 +474,7 @@ rocPerFold <- function(mm, ignOrEscapeColName) {
               unique(ignZeroAndOnes), "; AUC is undefined for it, so it is skipped")
       return(NULL)
     }
-    pROC::roc(ignZeroAndOnes, d$valData[["predTweedie"]])
+    pROC::roc(ignZeroAndOnes, d$valData[["predPoisson"]])
   })
 }
 

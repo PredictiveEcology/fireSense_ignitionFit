@@ -9,7 +9,7 @@ test_that("functionNameHelper joins its arguments with '_' by default", {
 })
 
 test_that("rocPerFold and aucPerFold give the AUC of each fold", {
-  fold <- function(outcome, pred) list(valData = data.frame(ignitions = outcome, predTweedie = pred))
+  fold <- function(outcome, pred) list(valData = data.frame(ignitions = outcome, predPoisson = pred))
   ## cases predicted 0.2 and 0.4, controls 0.1 and 0.3: of the 4 case-control pairs, 3 have the
   ## case above the control (0.2 > 0.1, 0.4 > 0.1, 0.4 > 0.3), so AUC = 3/4.
   threeQuarters <- fold(c(0, 1, 0, 1), c(0.1, 0.2, 0.3, 0.4))
@@ -25,12 +25,12 @@ test_that("rocPerFold and aucPerFold give the AUC of each fold", {
 
   ## the response column is looked up by name
   esc <- list(valData = data.frame(ignitions = c(1, 1, 1, 1), escapes = c(0, 1, 0, 1),
-                                   predTweedie = c(0.1, 0.2, 0.3, 0.4)))
+                                   predPoisson = c(0.1, 0.2, 0.3, 0.4)))
   expect_equal(aucPerFold(suppressMessages(rocPerFold(list(esc), "escapes"))), 0.75)
 })
 
 test_that("a fold with one outcome is skipped with a message naming the value", {
-  one <- list(valData = data.frame(escapes = c(2, 1, 1), predTweedie = c(0.2, 0.5, 0.9)))
+  one <- list(valData = data.frame(escapes = c(2, 1, 1), predPoisson = c(0.2, 0.5, 0.9)))
   expect_message(rocs <- rocPerFold(list(one), "escapes"),
                  "a validation fold of escapes holds only the value 1; AUC is undefined", fixed = TRUE)
   expect_identical(rocs, list(NULL))
