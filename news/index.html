@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0</span>
       </span>
     </div>
 
@@ -52,7 +52,9 @@
     </div>
 
     <div class="section level2">
-<h2 class="page-header" data-toc-text="development version" id="firesense_ignitionfit-development-version">fireSense_ignitionFit (development version)<a class="anchor" aria-label="anchor" href="#firesense_ignitionfit-development-version"></a></h2>
+<h2 class="page-header" data-toc-text="1.2.0" id="firesense_ignitionfit-120">fireSense_ignitionFit 1.2.0<a class="anchor" aria-label="anchor" href="#firesense_ignitionfit-120"></a></h2>
+<p>This release makes fitting faster to repeat and safer to trust. A fitted ignition and escape model is now saved to a shared online store for its study area, so later runs, on any machine, reuse it instead of fitting again; a stored fit is only reused when it was made with the same kinds of input data as the current run. A bug that let the module reuse an old cached fit after the input data had changed is fixed.</p>
+<p>The module now fits only with the machine-learning method (xgboost) that was already its default; the older statistical options are removed, along with settings that no longer did anything. Cross-validation is more careful about rare fires, the response-curve figures are clearer, and the module has tests and a documentation website. It is renamed <code>fireSense_ignitionFit</code> (lower-case “i”), so projects need to update the name they use for it.</p>
 <ul><li>The response-curve figures now cover each covariate’s whole observed range (50 points from its minimum to its maximum), not just -2 to 2 standardised units. The fuel panel’s legend says “Fuel:” (it said “Climate:”), and the y axis reads “Predicted ignitions per pixel-year” or “Predicted escapes per ignited pixel-year” rather than “probability”, because the Tweedie models predict a count. Each fold’s prediction is drawn once, with x jitter only (the folds share x values); the y jitter, which was large relative to ignition rates near 3e-5, is gone.</li>
 <li>A fit stored in the ledger is reused only if its features (the xgboost boosters’ <code><a href="https://rdrr.io/r/stats/case.names.html" class="external-link">variable.names()</a></code>) are all among the current covariate columns, for each process in <code>whichProcessesToFit</code>. Otherwise the module says which features are missing and fits again, replacing the ledger row, as with <code>refitExisting = TRUE</code>. Before, a stored fit made with older covariates (e.g. non-forest groups since merged) was reused and <code>fireSense_ignitionPredict</code> failed on the missing columns. <code><a href="../reference/runXGBOOST.html">runXGBOOST()</a></code> and the check share <code><a href="../reference/xgbFeatureNames.html">xgbFeatureNames()</a></code>.</li>
 </ul></div>
