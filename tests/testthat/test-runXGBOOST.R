@@ -27,7 +27,7 @@ test_that("runXGBOOST returns one model per fold, fitted on the covariates only"
     expect_setequal(vn, c("CMDsm", "lightning", "Pice_mar", "youngAge"))
     expect_identical(vn, sort(vn))
     pars <- attr(m[[fold]], "params")
-    expect_identical(pars$objective, "reg:tweedie")
+    expect_identical(pars$objective, "count:poisson")
     expect_equal(pars[c("max_depth", "learning_rate", "reg_lambda")],
                  list(max_depth = 2, learning_rate = 0.15, reg_lambda = 0.5))
     expect_identical(nrow(attr(m[[fold]], "evaluation_log")), 100L)      # nrounds
@@ -55,8 +55,8 @@ test_that("the ignition models recover the known signal", {
   expect_lt(means[["0"]], 0.01)
   expect_equal(means[["1"]], 1, tolerance = 0.15)
   expect_equal(means[["2"]], 2, tolerance = 0.05)
-  ## value from origin/development at e3aa2a7 (xgboost 3.2.1.1)
-  expect_equal(as.numeric(means), c(0.00042, 0.91199, 2.01936), tolerance = 1e-3)
+  ## value with objective = "count:poisson" (xgboost 3.2.1.1); reg:tweedie gave 0.00042, 0.91199, 2.01936
+  expect_equal(as.numeric(means), c(0.00552, 0.88939, 2.02803), tolerance = 1e-3)
 })
 
 test_that("runXGBOOST gives the same folds and models when repeated, and restores the RNG", {
@@ -146,4 +146,16 @@ test_that("buildModel refuses a non-xgboost algorithm (that path was removed)", 
   expect_error(buildModel(covariates = data.table::data.table(ignitions = 0L), type = "ignition",
                           dig = "test", modelAlgorithm = "glmmadaptive"),
                "non-xgboost path was removed", fixed = TRUE)
+})
+
+test_that("with few ignitions the models still predict about the observed total", {
+  fitCache()
+  raw <- makeSparseCovariates()
+  expect_identical(sum(raw$ignitions), 33L)
+  dat <- scaleCovariates(raw)
+  m <- fitQuietly(data.table::copy(dat), dig = "sparse", type = "ignition", nFolds = 5)
+  X <- as.data.frame(dat)[, c("x1", "x2", "x3")]
+  predTotal <- rowMeans(sapply(m[paste0("Fold", 1:5)], function(mod) predict(mod, X)))
+  ## reg:tweedie gave 0.67 here
+  expect_equal(sum(predTotal) / sum(dat$ignitions), 1, tolerance = 0.1)
 })

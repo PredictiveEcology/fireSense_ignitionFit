@@ -19,7 +19,7 @@ sourceModule <- function() {
   e
 }
 
-fold <- function(outcome, pred) list(valData = data.frame(escape = outcome, predTweedie = pred))
+fold <- function(outcome, pred) list(valData = data.frame(escape = outcome, predPoisson = pred))
 
 test_that("a single-outcome fold yields NA instead of stopping the fit", {
   skip_if_not_installed("pROC")

@@ -38,3 +38,19 @@ makeIgnitionFitRTM <- function(nonNAs = 1000) {
   attr(r, "nonNAs") <- nonNAs
   r
 }
+
+## 2000 pixels x 10 years = 20000 rows with 33 ignitions, all where `x1` is high (0.17% of rows).
+## Sparse enough that a log-link Tweedie objective loses predicted mass every boosting round.
+makeSparseCovariates <- function(nPix = 2000, nYr = 10) {
+  i <- seq_len(nPix * nYr)
+  x1 <- ((i * 37) %% 1009) / 100.9
+  dt <- data.table::data.table(
+    pixelID = rep(seq_len(nPix), times = nYr),
+    year    = rep(2001:(2000 + nYr), each = nPix),
+    x1      = x1,
+    x2      = as.numeric((i * 53) %% 97),
+    x3      = as.numeric((i * 17) %% 13),
+    ignitions = as.integer(x1 > 9.5 & i %% 25 == 0)
+  )
+  dt
+}
