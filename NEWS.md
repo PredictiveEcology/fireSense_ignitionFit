@@ -1,6 +1,7 @@
 # fireSense_ignitionFit (development version)
 
 - The response-curve figures now cover each covariate's whole observed range (50 points from its minimum to its maximum), not just -2 to 2 standardised units. The fuel panel's legend says "Fuel:" (it said "Climate:"), and the y axis reads "Predicted ignitions per pixel-year" or "Predicted escapes per ignited pixel-year" rather than "probability", because the Tweedie models predict a count. Each fold's prediction is drawn once, with x jitter only (the folds share x values); the y jitter, which was large relative to ignition rates near 3e-5, is gone.
+- A fit stored in the ledger is reused only if its features (the xgboost boosters' `variable.names()`) are all among the current covariate columns, for each process in `whichProcessesToFit`. Otherwise the module says which features are missing and fits again, replacing the ledger row, as with `refitExisting = TRUE`. Before, a stored fit made with older covariates (e.g. non-forest groups since merged) was reused and `fireSense_ignitionPredict` failed on the missing columns. `runXGBOOST()` and the check share `xgbFeatureNames()`.
 
 # fireSense_ignitionFit 1.1.2
 
