@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9078)",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9087)",
                   "ggplot2", "ggpubr", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -41,7 +41,7 @@ defineModule(sim, list(
                     "Model type. Only `xgboost` (any value containing 'xgb') works."),
     defineParameter(".plots", "character", default = "screen",
                     desc = paste("See `?Plots`. If set, plots the predicted response against each covariate,",
-                                 "for climate and fuel covariates separately, and saves it as png in `figurePath(sim)`.")),
+                                 "for climate and fuel covariates separately, and saves it as png in `fitOutputPath`.")),
     defineParameter(".runInitialTime", "numeric", default = start(sim),
                     desc = "when to start this module? By default, the start time of the simulation."),
     defineParameter(".runInterval", "numeric", default = NA,
@@ -70,6 +70,11 @@ defineModule(sim, list(
                                   "default) reads and writes the file named for this fit's fire years and model,",
                                   "`fireSenseUtils::ignitionFitFilenameFor()`, e.g.",
                                   "`fireSenseIgnitionParams_1985-2024_xgboost.rds`.")),
+    defineParameter("fitOutputPath", "character", NULL, NA, NA,
+                    paste("Folder for this fit's figures. `NULL` (the default) puts them next to the fit's ledger",
+                          "file, in `fireSenseUtils::fitOutputPath(inputPath(sim), .ELFind, <ledger file>)`, i.e.",
+                          "`<inputPath>/fits/<.ELFind>_fireSenseIgnitionParams_1985-2024_xgboost`, so they do not",
+                          "depend on the scenario or replicate that ran the fit.")),
     defineParameter("refitExisting", "logical", FALSE, NA, NA,
                     paste("FOR DEVELOPERS ONLY: fit this polygon even when the ledger already holds ignition and",
                           "escape fits for it. A ledger row normally means the fit is done, and `run` skips it and",
@@ -328,7 +333,7 @@ buildModelsFitModels <- function(igOrEsc, sim) {
   if (anyPlotting(P(sim)$.plots)) {
     message("Plotting ", igOrEsc, "...")
 
-    figPath <- figurePath(sim)
+    figPath <- ignitionFitOutputPath(sim)
     digModels <- attr(modelHere, "tags")
     modelOnly <- modelHere[grep("Fold", names(modelHere))]
     aa <- setupPlots(modelOnly, dat = data$covariates, igOrEsc) |>

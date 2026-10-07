@@ -81,11 +81,28 @@ test_that("init schedules checkData then run, and both processes are fitted and 
                as.data.frame(makeIgnitionCovariates(escapes = TRUE)))
 
   ## one png per process
-  figs <- list.files(SpaDES.core::figurePath(sim), recursive = TRUE, pattern = "[.]png$", full.names = TRUE)
+  figs <- list.files(ignitionFitOutputPath(sim), recursive = TRUE, pattern = "[.]png$", full.names = TRUE)
   expect_length(figs, 2L)
   expect_length(grep("FuelClimate_Lightning_predicted_ignition_time-ordered_", basename(figs)), 1L)
   expect_length(grep("FuelClimate__predicted_escape_time-ordered_", basename(figs)), 1L)
   expect_true(all(file.size(figs) > 1000))
+})
+
+test_that("a fit's figures go next to its ledger file, not in the scenario's output folder", {
+  sim <- runModule(params = list(.plots = "png"), objects = list(.ELFind = "6.1.1"))
+  fitDir <- file.path(SpaDES.core::inputPath(sim), "fits",
+                      paste0("6.1.1_", tools::file_path_sans_ext(
+                        fireSenseUtils::ignitionFitFilenameFor(ignitionFitYears(sim)))))
+  expect_identical(ignitionFitOutputPath(sim), fitDir)
+  expect_gt(length(list.files(fitDir, pattern = "\\.png$")), 0L)
+  expect_length(list.files(SpaDES.core::outputPath(sim), pattern = "\\.png$", recursive = TRUE), 0L)
+})
+
+test_that("parameter fitOutputPath overrides the folder", {
+  elsewhere <- withr::local_tempdir()
+  sim <- runModule(params = list(.plots = "png", fitOutputPath = elsewhere), objects = list(.ELFind = "6.1.1"))
+  expect_identical(ignitionFitOutputPath(sim), elsewhere)
+  expect_gt(length(list.files(elsewhere, pattern = "\\.png$")), 0L)
 })
 
 test_that("only the requested process is fitted, nothing is plotted without .plots, and run repeats", {

@@ -28,3 +28,17 @@ ignitionFitYears <- function(sim) {
            sim$fireSense_escapeCovariates[[fireSenseUtils::yearTxt]])
   as.integer(yrs)
 }
+
+#' The folder this fit's figures go to
+#'
+#' The parameter `fitOutputPath` when set; otherwise next to this fit's ledger file, a folder named
+#' for the polygon (`sim$.ELFind`) and that file (`fireSenseUtils::fitOutputPath()`). A fit depends
+#' only on those, so its figures do not go with whichever scenario and replicate ran it.
+#'
+#' @param sim A `simList`.
+#' @return A path. Nothing is created.
+ignitionFitOutputPath <- function(sim) {
+  if (!is.null(P(sim)$fitOutputPath)) return(P(sim)$fitOutputPath)
+  fireSenseUtils::fitOutputPath(inputPath(sim), sim$.ELFind,
+                                ignitionLedgerWriteFile(P(sim)$ignitionFitFilename, ignitionFitYears(sim)))
+}

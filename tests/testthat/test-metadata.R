@@ -41,7 +41,7 @@ test_that("parameters are the expected names", {
     sort(md$parameters$paramName),
     sort(c(".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
            "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
-           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting"))
+           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting", "fitOutputPath"))
   )
 })
 
@@ -53,7 +53,7 @@ test_that("parameters have the expected classes and defaults", {
     classes[order(names(classes))],
     c(.plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
       .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
-      ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
+      fitOutputPath = "character", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
       modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
       whichProcessesToFit = "character")
   )
@@ -69,6 +69,7 @@ test_that("parameters have the expected classes and defaults", {
   expect_true(is.na(default(".runInterval")))
   expect_identical(default("ignitionFitFilename"), "latest")
   expect_identical(default("refitExisting"), FALSE)
+  expect_null(default("fitOutputPath"))
   expect_identical(default("ignitionFitGoogleDriveFolder"),
                    "https://drive.google.com/drive/folders/1X9-mRjyLMNpgkP_cfqhbr_AQEPOsVCHf")
   ## no parameter has bounds any more
