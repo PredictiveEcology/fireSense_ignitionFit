@@ -90,7 +90,7 @@
 
 
 <dt id="arg-jitter">jitter<a class="anchor" aria-label="anchor" href="#arg-jitter"></a></dt>
-<dd><p>Jitter width on x; the height is <code>jitter / 7000</code>.</p></dd>
+<dd><p>Jitter width on x, so the folds, which share x values, do not overlap exactly. y is never jittered.</p></dd>
 
 
 <dt id="arg-colors">colors<a class="anchor" aria-label="anchor" href="#arg-colors"></a></dt>
@@ -102,7 +102,9 @@
 
 
 <dt id="arg-igoresc">igOrEsc<a class="anchor" aria-label="anchor" href="#arg-igoresc"></a></dt>
-<dd><p><code>"ignition"</code> or <code>"escape"</code>; used in the y-axis label.</p></dd>
+<dd><p><code>"ignition"</code> or <code>"escape"</code>; used in the y-axis label. The models are Tweedie
+(<code>reg:tweedie</code>) fits to counts, so the y-axis is an expected count: ignitions per pixel-year,
+or escapes per ignited pixel-year.</p></dd>
 
 </dl></div>
     <div id="value">
