@@ -1,3 +1,5 @@
+# fireSense_ignitionFit (development version)
+
 # fireSense_ignitionFit 1.2.0
 
 This release makes fitting faster to repeat and safer to trust. A fitted ignition and escape model is now saved to a shared online store for its study area, so later runs, on any machine, reuse it instead of fitting again; a stored fit is only reused when it was made with the same kinds of input data as the current run. A bug that let the module reuse an old cached fit after the input data had changed is fixed.
