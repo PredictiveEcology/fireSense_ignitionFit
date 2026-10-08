@@ -23,7 +23,7 @@ defineModule(sim, list(
                   "ggplot2", "ggpubr", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
-                  "PredictiveEcology/reproducible@development (>= 3.2.1.9058)", # CacheGeo appends to a ledger holding xgboost models
+                  "PredictiveEcology/reproducible@development (>= 3.2.1.9067)", # CacheGeo: ledger with xgboost models; `le = le` no longer partially matches `ledger`
                   "RhpcBLASctl", "sf",
                   "caret", "pROC",
                   "PredictiveEcology/SHAPforxgboost (>= 0.1.3.9001)", "xgboost (>=3.0.0)", "lightgbm", # install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
