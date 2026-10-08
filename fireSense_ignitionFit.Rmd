@@ -1,0 +1,139 @@
+---
+title: "fireSense_ignitionFit Manual"
+subtitle: "v.`r SpaDES.core::moduleMetadata(module = 'fireSense_ignitionFit', path = '..')$version`"
+date: "Last updated: `r Sys.Date()`"
+output:
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    theme: sandstone
+    number_sections: false
+    df_print: paged
+    keep_md: yes
+editor_options:
+  chunk_output_type: console
+bibliography: citations/references_fireSense_ignitionFit.bib
+link-citations: true
+always_allow_html: true
+---
+
+# fireSense_ignitionFit Module
+
+<!-- the following are text references used in captions for LaTeX compatibility -->
+(ref:fireSense-ignitionFit) *fireSense_ignitionFit*
+
+```{r setup-fireSense-ignitionFit, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, results = "hold") ## change to eval = TRUE if all chunks are to be evaluated
+
+dir.create("figures", showWarnings = FALSE)
+
+download.file(url = "https://img.shields.io/badge/Made%20with-Markdown-1f425f.png",
+              destfile = "figures/markdownBadge.png",
+              mode = "wb")
+```
+
+[![made-with-Markdown](figures/markdownBadge.png)](https://commonmark.org)
+
+<!-- if knitting to pdf remember to add the pandoc_args: ["--extract-media", "."] option to yml in order to get the badge images -->
+
+#### Authors:
+
+`r paste(as.character(SpaDES.core::moduleMetadata(module = "fireSense_ignitionFit", path = '..')$authors), sep = ', ')`
+<!-- ideally separate authors with new lines, '\n' not working -->
+
+## Module Overview
+
+Fits models of fire ignition and, optionally, fire escape from climate and fuel covariates.
+The fitted models are used by *fireSense_ignitionPredict* and *fireSense_dataPrepPredict*.
+The module does not prepare data; *fireSense_dataPrepFit* supplies its inputs.
+Earlier versions fitted the piecewise regression models of @Marchal:2017a, @Marchal:2017b and @Marchal:2019.
+
+### What it does
+
+For each process in `whichProcessesToFit` (`"ignition"`, `"escape"`):
+
+1. Covariates are centred and scaled (`fireSenseUtils::prepareCovariatesOuter()`), if `rescaleVars = TRUE`.
+   Ignition uses `fireSense_ignitionCovariates`; escape uses `fireSense_escapeCovariates` and only its rows with at least one ignition.
+2. Rows are split into 5 cross-validation folds, stratified on whether the response is positive.
+   The fit stops if any fold would train without a positive observation.
+3. One `xgboost` model (Tweedie objective) is fitted per fold, with the fold as the evaluation set.
+   The AUC of each fold is calculated on its held-out rows and the mean is printed.
+4. The per-fold models are returned together with the values needed to predict from them (see outputs).
+
+Only `modelAlgorithm = "xgboost"` works: the non-xgboost modelling path was removed, and `buildModel()` now stops for any other algorithm.
+`crossValType` does not change the fit; it is only used in the plot filename.
+Fits are cached with `reproducible::Cache()`.
+
+### Events
+
+- `init`: schedules `checkData` and `run` at `.runInitialTime`.
+- `checkData`: stops if `ignitionFitRTM` lacks the `nonNAs` attribute, or if `whichProcessesToFit` names neither process.
+- `run`: fits and, if `.plots` is set, plots. Repeats every `.runInterval` if that is not `NA`.
+
+### Module inputs and parameters
+
+Table \@ref(tab:moduleInputs-fireSense-ignitionFit) lists the declared inputs.
+Fitting escape also needs `fireSense_escapeCovariates` (from *fireSense_dataPrepFit*), which is not declared in the metadata.
+
+```{r moduleInputs-fireSense-ignitionFit, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+df_inputs <- SpaDES.core::moduleInputs("fireSense_ignitionFit", "..")
+knitr::kable(df_inputs,
+             caption = "List of (ref:fireSense-ignitionFit) input objects and their description.") |>
+  kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
+```
+
+Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
+
+```{r moduleParams-fireSense-ignitionFit, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+df_params <- SpaDES.core::moduleParams("fireSense_ignitionFit", "..")
+knitr::kable(df_params, caption = "List of (ref:fireSense-ignitionFit) parameters and their description.") |>
+  kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
+```
+
+### Plotting
+
+If `.plots` is set, one figure per process: the predicted response against each covariate, with all other covariates at their mean, for climate and fuel covariates in separate panels.
+It is saved as png in `figurePath(sim)`.
+
+### Saving
+
+Nothing is saved apart from the figure.
+
+### Module outputs
+
+Outputs are in Table \@ref(tab:moduleOutputs-fireSense-ignitionFit).
+`fireSense_IgnitionFitted$modelList$model` is the list of per-fold models (`Fold1`, ...) plus `rocs`, the ROC curve of each fold.
+`lambdaRescaleFactor` is the number of rows in the covariates divided by the number of non-NA cells in `ignitionFitRTM`.
+
+```{r moduleOutputs-fireSense-ignitionFit, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+df_outputs <- SpaDES.core::moduleOutputs("fireSense_ignitionFit", "..")
+knitr::kable(df_outputs, caption = "List of (ref:fireSense-ignitionFit) outputs and their description.") |>
+  kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
+```
+
+### Usage
+
+```{r usage-fireSense-ignitionFit}
+## in the same `simInit()` call as fireSense_dataPrepFit, which creates the inputs
+modules <- c("fireSense_dataPrepFit", "fireSense_ignitionFit")
+params <- list(
+  fireSense_ignitionFit = list(whichProcessesToFit = c("ignition", "escape"), .plots = "png")
+)
+
+## after `spades()`
+sim$fireSense_IgnitionFitted$modelList$model$Fold1
+```
+
+### Links to other modules
+
+- [fireSense_dataPrepFit](https://github.com/PredictiveEcology/fireSense_dataPrepFit) creates the inputs.
+- [fireSense_dataPrepPredict](https://github.com/PredictiveEcology/fireSense_dataPrepPredict) and [fireSense_ignitionPredict](https://github.com/PredictiveEcology/fireSense_ignitionPredict) use the outputs.
+
+### Getting help
+
+- <https://github.com/PredictiveEcology/fireSense_ignitionFit/issues>
+
+## References
+
+<!-- autogenerated from bibligraphy -->
+

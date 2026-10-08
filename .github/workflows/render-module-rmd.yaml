@@ -20,8 +20,8 @@ on:
       - development
     paths:
       - .github/workflows/render-module-rmd.yaml
-      - fireSense_IgnitionFit.Rmd
-      - fireSense_IgnitionFit.R
+      - fireSense_ignitionFit.Rmd
+      - fireSense_ignitionFit.R
   workflow_dispatch:
 
 jobs:
@@ -35,4 +35,4 @@ jobs:
       contents: write
     uses: PredictiveEcology/actions/.github/workflows/render-module-rmd.yaml@main
     with:
-      module: fireSense_IgnitionFit
+      module: fireSense_ignitionFit

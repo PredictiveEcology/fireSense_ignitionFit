@@ -17,10 +17,10 @@ test_that("inputs are the expected names and classes", {
   inputs <- stats::setNames(md$inputObjects$objectClass, md$inputObjects$objectName)
   expect_identical(
     inputs[order(names(inputs))],
-    c(climateVariablesForFire      = "list",
+    c(.ELFind                      = "character",
       fireSense_ignitionCovariates = "data.frame",
-      fireSense_ignitionFormula    = "character",
-      ignitionFitRTM               = "SpatRaster")
+      ignitionFitRTM               = "SpatRaster",
+      studyArea                    = "SpatVector")
   )
 })
 
@@ -30,7 +30,8 @@ test_that("outputs are the expected names and classes", {
   expect_identical(
     outputs[order(names(outputs))],
     c(fireSense_EscapeFitted   = "fireSense_EscapeFit",
-      fireSense_IgnitionFitted = "fireSense_IgnitionFit")
+      fireSense_IgnitionFitted = "fireSense_IgnitionFit",
+      ignitionFitPreRun        = "data.frame")
   )
 })
 
@@ -38,9 +39,45 @@ test_that("parameters are the expected names", {
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   expect_identical(
     sort(md$parameters$paramName),
-    sort(c(".plotInitialTime", ".plots", ".runInitialTime", ".runInterval",
-           ".saveInitialTime", ".saveInterval", ".seed", ".studyAreaName", ".useCache",
-           "crossValType", "escapeFamily", "ignitionFamily", "modelAlgorithm",
-           "plot_fuelBiomassPerPrediction", "rescaleVars", "whichProcessesToFit"))
+    sort(c(".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
+           "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
+           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting"))
   )
+})
+
+test_that("parameters have the expected classes and defaults", {
+  md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
+  p <- md$parameters
+  classes <- stats::setNames(unlist(p$paramClass), p$paramName)
+  expect_identical(
+    classes[order(names(classes))],
+    c(.plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
+      .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
+      ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
+      modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
+      whichProcessesToFit = "character")
+  )
+
+  default <- function(name) p$default[[match(name, p$paramName)]]
+  expect_identical(default("crossValType"), c("time-ordered", "crossValidation"))
+  expect_identical(default("whichProcessesToFit"), c("ignition", "escape"))
+  expect_identical(default("modelAlgorithm"), "xgboost")
+  expect_identical(default("rescaleVars"), TRUE)
+  expect_identical(default(".plots"), "screen")
+  expect_identical(default(".useCache"), FALSE)
+  expect_null(default(".seed"))
+  expect_true(is.na(default(".runInterval")))
+  expect_identical(default("ignitionFitFilename"), "latest")
+  expect_identical(default("refitExisting"), FALSE)
+  expect_identical(default("ignitionFitGoogleDriveFolder"),
+                   "https://drive.google.com/drive/folders/1X9-mRjyLMNpgkP_cfqhbr_AQEPOsVCHf")
+  ## no parameter has bounds any more
+  expect_true(all(vapply(p$min, function(x) is.na(x) || is.null(x), logical(1))))
+})
+
+test_that("every package the tests rely on is in reqdPkgs, so CI cannot skip them", {
+  md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
+  pkgs <- sub("\\s*\\(.*$", "", sub("@.*$", "", sub("^.*/", "", unlist(md$reqdPkgs))))
+  expect_true(all(c("xgboost", "SHAPforxgboost", "caret", "pROC", "data.table", "terra",
+                    "ggplot2", "ggpubr", "fireSenseUtils", "reproducible", "SpaDES.core") %in% pkgs))
 })
