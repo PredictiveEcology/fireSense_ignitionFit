@@ -43,15 +43,18 @@ test_that("without studyArea, nothing changes: no ledger is read or written", {
   expect_identical(names(sim$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs"))
 })
 
+## the model tag is fireSenseUtils' to set; only the years come from this module
+ledgerName <- paste0("fireSenseIgnitionParams_2001-2004", fireSenseUtils::ignitionFitFileTag, ".rds")
+
 test_that("a fit writes one ledger row per polygon, with rocs stripped", {
   paths <- localLedgerPaths()
   sa <- studyAreaToy()
   sim <- runIgnitionModule(paths, params = list(.plots = NA, ignitionFitGoogleDriveFolder = NULL),
                            objects = list(.ELFind = "6.1.1", studyArea = sa))
 
-  files <- list.files(paths$inputPath, pattern = "^fireSenseIgnitionParams_.*_xgboost\\.rds$")
+  files <- list.files(paths$inputPath, pattern = paste0("^fireSenseIgnitionParams_.*", fireSenseUtils::ignitionFitFileTag, "\\.rds$"))
   expect_length(files, 1L)
-  expect_identical(files, "fireSenseIgnitionParams_2001-2004_xgboost.rds")   # from makeIgnitionCovariates()'s years
+  expect_identical(files, ledgerName)   # from makeIgnitionCovariates()'s years
 
   expect_identical(as.character(sim$ignitionFitPreRun$polygonID), "6.1.1")
   ledgerFit <- sim$ignitionFitPreRun$fireSense_IgnitionFitted[[1]]
@@ -73,7 +76,7 @@ test_that("a stored ledger fit is used instead of refitting, and predict() still
   commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
 
   sim1 <- runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = sa))
-  expect_true(file.exists(file.path(paths$inputPath, "fireSenseIgnitionParams_2001-2004_xgboost.rds")))
+  expect_true(file.exists(file.path(paths$inputPath, ledgerName)))
 
   ## second run, same ledger location: the fit must not run again. The converted package's name
   ## has dots where the module name has underscores (R package names cannot have underscores).
@@ -104,7 +107,7 @@ test_that("another polygon's fit is appended to the ledger and the first polygon
   next_to <- terra::vect(terra::ext(10000, 12500, 0, 2500), crs = "EPSG:3005")
   runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
   sim2 <- runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.2", studyArea = next_to))
-  ledger <- readRDS(file.path(paths$inputPath, "fireSenseIgnitionParams_2001-2004_xgboost.rds"))
+  ledger <- readRDS(file.path(paths$inputPath, ledgerName))
   expect_setequal(as.character(ledger$polygonID), c("6.1.1", "6.1.2"))
   expect_equal(ledger$fireSense_IgnitionFitted[[which(ledger$polygonID == "6.1.2")]],
                sim2$ignitionFitPreRun$fireSense_IgnitionFitted[[which(sim2$ignitionFitPreRun$polygonID == "6.1.2")]])
@@ -124,7 +127,7 @@ test_that("refitExisting fits again even when the ledger already has a row", {
                             objects = list(.ELFind = "6.1.1", studyArea = sa))
   expect_identical(names(sim2$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs"))
   ## the refit replaces the polygon's row; it does not add a second one
-  ledger <- readRDS(file.path(paths$inputPath, "fireSenseIgnitionParams_2001-2004_xgboost.rds"))
+  ledger <- readRDS(file.path(paths$inputPath, ledgerName))
   expect_identical(as.character(ledger$polygonID), "6.1.1")
 })
 
@@ -198,7 +201,7 @@ test_that("a stored ledger fit whose features are missing from the covariates is
     expect_setequal(stats::variable.names(fitted$modelList$model$Fold1),
                     c("CMDsm", "lightning", "Pice_new", "youngAge"))
   ## the new fit replaced the polygon's row
-  ledger <- readRDS(file.path(paths$inputPath, "fireSenseIgnitionParams_2001-2004_xgboost.rds"))
+  ledger <- readRDS(file.path(paths$inputPath, ledgerName))
   expect_identical(as.character(ledger$polygonID), "6.1.1")
   expect_true("Pice_new" %in% stats::variable.names(ledger$fireSense_IgnitionFitted[[1]]$modelList$model$Fold1))
 })
