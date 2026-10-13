@@ -2995,7 +2995,7 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">fireSense_ignitionFit Manual</h1>
 <h3 class="subtitle">v.1.2.0.9000</h3>
-<h4 class="date">Last updated: 2026-10-08</h4>
+<h4 class="date">Last updated: 2026-10-13</h4>
 
 </div>
 
@@ -3025,7 +3025,7 @@ Earlier versions fitted the piecewise regression models of <span class="citation
 Ignition uses <code>fireSense_ignitionCovariates</code>; escape uses <code>fireSense_escapeCovariates</code> and only its rows with at least one ignition.</li>
 <li>Rows are split into 5 cross-validation folds, stratified on whether the response is positive.
 The fit stops if any fold would train without a positive observation.</li>
-<li>One <code>xgboost</code> model (Tweedie objective) is fitted per fold, with the fold as the evaluation set.
+<li>One <code>xgboost</code> model (Poisson objective) is fitted per fold, with the fold as the evaluation set.
 The AUC of each fold is calculated on its held-out rows and the mean is printed.</li>
 <li>The per-fold models are returned together with the values needed to predict from them (see outputs).</li>
 </ol>
