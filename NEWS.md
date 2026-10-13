@@ -1,6 +1,15 @@
 # fireSense_ignitionFit (development version)
 
 - `runXGBOOST()` fits the ignition and escape models with `objective = "count:poisson"`, not `"reg:tweedie"`. With a log link and few positives, Tweedie lost predicted mass every boosting round: held-out predicted/observed ignitions were 0.34 for an ELF with 41 ignitions (0.97 with 9676), and 0.24 for escapes in an ELF with 20. Poisson gives 0.99-1.00 for ignitions and 0.81-1.04 for escapes, with equal or better held-out deviance. Fits stored in the ledger are not refitted automatically; use `refitExisting = TRUE`.
+
+# fireSense_ignitionFit 1.2.0
+
+This release makes fitting faster to repeat and safer to trust. A fitted ignition and escape model is now saved to a shared online store for its study area, so later runs, on any machine, reuse it instead of fitting again; a stored fit is only reused when it was made with the same kinds of input data as the current run. A bug that let the module reuse an old cached fit after the input data had changed is fixed.
+
+The module now fits only with the machine-learning method (xgboost) that was already its default; the older statistical options are removed, along with settings that no longer did anything. Cross-validation is more careful about rare fires, the response-curve figures are clearer, and the module has tests and a documentation website. It is renamed `fireSense_ignitionFit` (lower-case "i"), so projects need to update the name they use for it.
+
+- Requires `reproducible (>= 3.2.1.9067)`: before it, `CacheGeo()` matched this module's `le = le` to its `ledger` argument and every ledger write stopped with "`area` is required" (PredictiveEcology/reproducible#636).
+
 - The response-curve figures now cover each covariate's whole observed range (50 points from its minimum to its maximum), not just -2 to 2 standardised units. The fuel panel's legend says "Fuel:" (it said "Climate:"), and the y axis reads "Predicted ignitions per pixel-year" or "Predicted escapes per ignited pixel-year" rather than "probability", because the Tweedie models predict a count. Each fold's prediction is drawn once, with x jitter only (the folds share x values); the y jitter, which was large relative to ignition rates near 3e-5, is gone.
 - A fit stored in the ledger is reused only if its features (the xgboost boosters' `variable.names()`) are all among the current covariate columns, for each process in `whichProcessesToFit`. Otherwise the module says which features are missing and fits again, replacing the ledger row, as with `refitExisting = TRUE`. Before, a stored fit made with older covariates (e.g. non-forest groups since merged) was reused and `fireSense_ignitionPredict` failed on the missing columns. `runXGBOOST()` and the check share `xgbFeatureNames()`.
 
