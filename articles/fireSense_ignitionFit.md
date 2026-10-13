@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.2.0.9000"
-date: "Last updated: 2026-10-08"
+date: "Last updated: 2026-10-13"
 output:
   bookdown::html_document2:
     toc: true
@@ -50,7 +50,7 @@ For each process in `whichProcessesToFit` (`"ignition"`, `"escape"`):
    Ignition uses `fireSense_ignitionCovariates`; escape uses `fireSense_escapeCovariates` and only its rows with at least one ignition.
 2. Rows are split into 5 cross-validation folds, stratified on whether the response is positive.
    The fit stops if any fold would train without a positive observation.
-3. One `xgboost` model (Tweedie objective) is fitted per fold, with the fold as the evaluation set.
+3. One `xgboost` model (Poisson objective) is fitted per fold, with the fold as the evaluation set.
    The AUC of each fold is calculated on its held-out rows and the mean is printed.
 4. The per-fold models are returned together with the values needed to predict from them (see outputs).
 

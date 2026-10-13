@@ -93,7 +93,7 @@
 <ol style="list-style-type: decimal">
 <li>Covariates are centred and scaled (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/prepareCovariatesOuter.html" class="external-link">fireSenseUtils::prepareCovariatesOuter()</a></code>), if <code>rescaleVars = TRUE</code>. Ignition uses <code>fireSense_ignitionCovariates</code>; escape uses <code>fireSense_escapeCovariates</code> and only its rows with at least one ignition.</li>
 <li>Rows are split into 5 cross-validation folds, stratified on whether the response is positive. The fit stops if any fold would train without a positive observation.</li>
-<li>One <code>xgboost</code> model (Tweedie objective) is fitted per fold, with the fold as the evaluation set. The AUC of each fold is calculated on its held-out rows and the mean is printed.</li>
+<li>One <code>xgboost</code> model (Poisson objective) is fitted per fold, with the fold as the evaluation set. The AUC of each fold is calculated on its held-out rows and the mean is printed.</li>
 <li>The per-fold models are returned together with the values needed to predict from them (see outputs).</li>
 </ol>
 <p>Only <code>modelAlgorithm = "xgboost"</code> works: the non-xgboost modelling path was removed, and <code><a href="reference/buildModel.html">buildModel()</a></code> now stops for any other algorithm. <code>crossValType</code> does not change the fit; it is only used in the plot filename. Fits are cached with <code><a href="https://reproducible.predictiveecology.org/reference/Cache.html" class="external-link">reproducible::Cache()</a></code>.</p>
