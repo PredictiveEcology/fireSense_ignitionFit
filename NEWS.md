@@ -1,5 +1,7 @@
 # fireSense_ignitionFit (development version)
 
+- Fixed: `checkData` and `run` are declared in the new `.neverCache` parameter, so they are never cached, even when `.useCache` (the module's or `.globals`) lists them. `checkData` reads the ignition-fit ledger on Google Drive and `run` decides from it whether to fit, then writes the ledger; the ledger is not part of the event's cache key, and a cache hit skips the write. Needs SpaDES.core >= 3.2.1.9037.
+
 - The Poisson fits go to their own ledger file, `fireSenseIgnitionParams_<years>_xgboostPoisson_20261013.rds` (`fireSenseUtils::ignitionFitFileTag`), so `"latest"` never reuses the old `reg:tweedie` rows in `..._xgboost.rds`. Needs fireSenseUtils >= 0.2.3.9092 (PredictiveEcology/fireSenseUtils#149). Tests take the file name from `ignitionFitFileTag`.
 
 - `runXGBOOST()` fits the ignition and escape models with `objective = "count:poisson"`, not `"reg:tweedie"`. With a log link and few positives, Tweedie lost predicted mass every boosting round: held-out predicted/observed ignitions were 0.34 for an ELF with 41 ignitions (0.97 with 9676), and 0.24 for escapes in an ELF with 20. Poisson gives 0.99-1.00 for ignitions and 0.81-1.04 for escapes, with equal or better held-out deviance. Fits stored in the ledger are not refitted automatically; use `refitExisting = TRUE`.
