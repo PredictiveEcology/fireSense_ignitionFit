@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.2.0.9000"
-date: "Last updated: 2026-10-13"
+date: "Last updated: 2026-10-14"
 output:
   bookdown::html_document2:
     toc: true
@@ -216,7 +216,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> latest </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> File name of the shared fit ledger: an `sf` object with one row per polygon, holding its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `"latest"` (the default) reads and writes the file named for this fit's fire years and model, `fireSenseUtils::ignitionFitFilenameFor()`, e.g. `fireSenseIgnitionParams_1985-2024_xgboost.rds`. </td>
+   <td style="text-align:left;"> File name of the shared fit ledger: an `sf` object with one row per polygon, holding its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `"latest"` (the default) reads and writes the file named for this fit's fire years and model, `fireSenseUtils::ignitionFitFilenameFor()`, e.g. `fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> refitExisting </td>
