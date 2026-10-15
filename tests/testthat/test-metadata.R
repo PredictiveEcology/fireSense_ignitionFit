@@ -41,7 +41,7 @@ test_that("parameters are the expected names", {
     sort(md$parameters$paramName),
     sort(c(".neverCache", ".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
            "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
-           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting"))
+           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting", "doFit"))
   )
 })
 
@@ -53,7 +53,7 @@ test_that("parameters have the expected classes and defaults", {
     classes[order(names(classes))],
     c(.neverCache = "character", .plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
       .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
-      ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
+      doFit = "logical", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
       modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
       whichProcessesToFit = "character")
   )
@@ -68,7 +68,8 @@ test_that("parameters have the expected classes and defaults", {
   expect_null(default(".seed"))
   expect_true(is.na(default(".runInterval")))
   expect_identical(default("ignitionFitFilename"), "latest")
-  expect_identical(default("refitExisting"), FALSE)
+  expect_identical(default("doFit"), NA)                 # fit only when the ledger has no fit
+  expect_identical(default("refitExisting"), NA)         # deprecated alias: unset
   expect_identical(default("ignitionFitGoogleDriveFolder"),
                    fireSenseUtils::ignitionFitLedgerFolder())
   ## no parameter has bounds any more

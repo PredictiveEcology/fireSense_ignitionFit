@@ -73,11 +73,14 @@ defineModule(sim, list(
                                   "default) reads and writes the file named for this fit's fire years and model,",
                                   "`fireSenseUtils::ignitionFitFilenameFor()`, e.g.",
                                   "`fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`.")),
-    defineParameter("refitExisting", "logical", FALSE, NA, NA,
-                    paste("FOR DEVELOPERS ONLY: fit this polygon even when the ledger already holds ignition and",
-                          "escape fits for it. A ledger row normally means the fit is done, and `run` skips it and",
-                          "uses the stored fits instead. Set this when the fit's INPUTS have changed, so the stored",
-                          "row is stale and the polygon must be fitted again."))
+    defineParameter("doFit", "logical", NA, NA, NA,
+                    paste("Whether to fit this polygon. NA (default): do whatever is needed -- use the ledger's",
+                          "ignition and escape fits if it holds them for this polygon (and they fit the current",
+                          "covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS",
+                          "ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). FALSE: never",
+                          "fit -- use the ledger's fits, and stop with an error if it holds none for this polygon.")),
+    defineParameter("refitExisting", "logical", NA, NA, NA,
+                    paste("DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing."))
   ),
   inputObjects = bindrows(
     expectsInput(".ELFind", "character",
@@ -192,9 +195,10 @@ Init <- function(sim) {
 #' Fit the requested processes (the `run` event)
 #'
 #' When `sim$studyArea` is supplied and the ledger already has a row for `sim$.ELFind` (and
-#' `refitExisting` is not `TRUE`) and the stored models' features are all among the current
+#' `doFit` is not `TRUE`) and the stored models' features are all among the current
 #' covariate columns (`useExistingFitIsCompatible()`), the stored
-#' `fireSense_IgnitionFitted`/`fireSense_EscapeFitted` are used and the fit is skipped. Otherwise calls `buildModelsFitModels()` for each of
+#' `fireSense_IgnitionFitted`/`fireSense_EscapeFitted` are used and the fit is skipped. With `doFit` FALSE
+#' and no usable ledger fit the run stops. Otherwise calls `buildModelsFitModels()` for each of
 #' `P(sim)$whichProcessesToFit`, assigns the results to `sim$fireSense_IgnitionFitted` and/or
 #' `sim$fireSense_EscapeFitted`, and, when `sim$studyArea` is supplied, writes them to the ledger.
 #'
@@ -202,10 +206,13 @@ Init <- function(sim) {
 #' @return `sim`, invisibly.
 frequencyFitRun <- function(sim) {
 
-  if (!isTRUE(Par$refitExisting) && hasPreRunIgnitionFitForThisPolygon(sim) &&
-      useExistingFitIsCompatible(sim)) {
+  doFit <- resolveDoFit(P(sim), message = TRUE)
+  if (!isTRUE(doFit) && hasPreRunIgnitionFitForThisPolygon(sim) && useExistingFitIsCompatible(sim)) {
     return(invisible(useExistingIgnitionFit(sim)))
   }
+  if (isFALSE(doFit))
+    stop("There is no usable pre-run ignition/escape fit in the ledger for polygon ", sim$.ELFind[1],
+         " and `doFit` is FALSE. Set `doFit = NA` (or TRUE) to fit it.")
 
   #TODO: make cache smart by digest args in advance
   whichProcessesToFit <- P(sim)$whichProcessesToFit
