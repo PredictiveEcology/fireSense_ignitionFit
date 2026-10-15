@@ -70,7 +70,7 @@ test_that("parameters have the expected classes and defaults", {
   expect_identical(default("ignitionFitFilename"), "latest")
   expect_identical(default("refitExisting"), FALSE)
   expect_identical(default("ignitionFitGoogleDriveFolder"),
-                   "https://drive.google.com/drive/folders/1X9-mRjyLMNpgkP_cfqhbr_AQEPOsVCHf")
+                   fireSenseUtils::ignitionFitLedgerFolder())
   ## no parameter has bounds any more
   expect_true(all(vapply(p$min, function(x) is.na(x) || is.null(x), logical(1))))
 })
