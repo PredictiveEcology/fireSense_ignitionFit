@@ -206,13 +206,12 @@ Init <- function(sim) {
 #' @return `sim`, invisibly.
 frequencyFitRun <- function(sim) {
 
-  doFit <- resolveDoFit(P(sim), message = TRUE)
-  if (!isTRUE(doFit) && hasPreRunIgnitionFitForThisPolygon(sim) && useExistingFitIsCompatible(sim)) {
+  doFit <- fireSenseUtils::resolveDoFit(P(sim)$doFit, P(sim)$refitExisting,
+                                        module = "fireSense_ignitionFit", message = TRUE)
+  if (!fireSenseUtils::mustFit(doFit, hasPreRunIgnitionFitForThisPolygon(sim) && useExistingFitIsCompatible(sim),
+                               sim$.ELFind)) {
     return(invisible(useExistingIgnitionFit(sim)))
   }
-  if (isFALSE(doFit))
-    stop("There is no usable pre-run ignition/escape fit in the ledger for polygon ", sim$.ELFind[1],
-         " and `doFit` is FALSE. Set `doFit = NA` (or TRUE) to fit it.")
 
   #TODO: make cache smart by digest args in advance
   whichProcessesToFit <- P(sim)$whichProcessesToFit
