@@ -217,12 +217,20 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> File name of the shared fit ledger: an `sf` object with one row per polygon, holding its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `"latest"` (the default) reads and writes the file named for this fit's fire years and model, `fireSenseUtils::ignitionFitFilenameFor()`, e.g. `fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`. </td>
   </tr>
   <tr>
+   <td style="text-align:left;"> doFit </td>
+   <td style="text-align:left;"> logical </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Whether to fit this polygon. NA (default): do whatever is needed -- use the ledger's ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). FALSE: never fit -- use the ledger's fits, and stop with an error if it holds none for this polygon. </td>
+  </tr>
+  <tr>
    <td style="text-align:left;"> refitExisting </td>
    <td style="text-align:left;"> logical </td>
-   <td style="text-align:left;"> FALSE </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> FOR DEVELOPERS ONLY: fit this polygon even when the ledger already holds ignition and escape fits for it. A ledger row normally means the fit is done, and `run` skips it and uses the stored fits instead. Set this when the fit's INPUTS have changed, so the stored row is stale and the polygon must be fitted again. </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing. </td>
   </tr>
 </tbody>
 </table>

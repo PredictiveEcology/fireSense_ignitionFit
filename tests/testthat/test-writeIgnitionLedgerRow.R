@@ -8,7 +8,7 @@ studyAreaToy <- function() terra::vect(terra::ext(0, 2500, 0, 2500), crs = "EPSG
 
 ## Like runModule() in test-events.R, but paths are supplied (not a fresh tempdir each call), so
 ## a ledger file written by one call can be read back by the next.
-runIgnitionModule <- function(paths, params = list(), objects = list(), end = 1) {
+runIgnitionModule <- function(paths, params = list(), objects = list(), end = 1, msgs = new.env()) {
   defaults <- list(
     fireSense_ignitionCovariates = makeIgnitionCovariates(),
     fireSense_escapeCovariates   = makeIgnitionCovariates(escapes = TRUE),
@@ -17,12 +17,13 @@ runIgnitionModule <- function(paths, params = list(), objects = list(), end = 1)
   defaults[names(objects)] <- objects
   objects <- defaults
   sim <- NULL
-  utils::capture.output(suppressWarnings(suppressMessages({
+  msgs$text <- character()
+  utils::capture.output(suppressWarnings(withCallingHandlers({
     sim <- SpaDES.core::simInit(times = list(start = 1, end = end), modules = moduleName,
                                 paths = paths, objects = objects,
                                 params = stats::setNames(list(params), moduleName))
     sim <- SpaDES.core::spades(sim)
-  })))
+  }, message = function(m) { msgs$text <- c(msgs$text, conditionMessage(m)); invokeRestart("muffleMessage") })))
   sim
 }
 
@@ -113,7 +114,7 @@ test_that("another polygon's fit is appended to the ledger and the first polygon
                sim2$ignitionFitPreRun$fireSense_IgnitionFitted[[which(sim2$ignitionFitPreRun$polygonID == "6.1.2")]])
 })
 
-test_that("refitExisting fits again even when the ledger already has a row", {
+test_that("doFit = TRUE fits again even when the ledger already has a row", {
   paths <- localLedgerPaths()
   sa <- studyAreaToy()
   commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
@@ -121,14 +122,56 @@ test_that("refitExisting fits again even when the ledger already has a row", {
   runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = sa))
 
   local_mocked_bindings(
-    hasPreRunIgnitionFitForThisPolygon = function(sim) stop("must not be consulted when refitExisting is TRUE"),
+    hasPreRunIgnitionFitForThisPolygon = function(sim) stop("must not be consulted when doFit is TRUE"),
     .package = gsub("_", ".", moduleName, fixed = TRUE))
-  sim2 <- runIgnitionModule(paths, params = c(commonParams, list(refitExisting = TRUE)),
+  sim2 <- runIgnitionModule(paths, params = c(commonParams, list(doFit = TRUE)),
                             objects = list(.ELFind = "6.1.1", studyArea = sa))
   expect_identical(names(sim2$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs"))
   ## the refit replaces the polygon's row; it does not add a second one
   ledger <- readRDS(file.path(paths$inputPath, ledgerName))
   expect_identical(as.character(ledger$polygonID), "6.1.1")
+})
+
+## Does a run fit? A run that reuses the ledger's fit says so; a run that fits writes its row. A ledger is
+## seeded first when wanted. (buildModelsFitModels() cannot be counted by mocking: the module calls it from
+## its own environment.)
+fitsInRun <- function(paths, params, ledger) {
+  commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
+  objs <- list(.ELFind = "6.1.1", studyArea = studyAreaToy())
+  if (ledger) runIgnitionModule(paths, params = commonParams, objects = objs)
+  msgs <- new.env()
+  out <- try(runIgnitionModule(paths, params = c(commonParams, params), objects = objs, msgs = msgs), silent = TRUE)
+  failed <- inherits(out, "try-error")
+  list(fits = if (failed) 0L else as.integer(!any(grepl("using those instead of fitting", msgs$text))),
+       error = if (failed) as.character(out) else NULL, msgs = msgs$text)
+}
+
+test_that("doFit NA (the default), TRUE and FALSE, with and without a ledger fit", {
+  paths <- localLedgerPaths()
+  ## no ledger fit
+  expect_gt(fitsInRun(localLedgerPaths(), list(), ledger = FALSE)$fits, 0L)               # default: fit
+  expect_gt(fitsInRun(localLedgerPaths(), list(doFit = NA), ledger = FALSE)$fits, 0L)
+  expect_gt(fitsInRun(localLedgerPaths(), list(doFit = TRUE), ledger = FALSE)$fits, 0L)
+  r <- fitsInRun(localLedgerPaths(), list(doFit = FALSE), ledger = FALSE)                  # never fit: error
+  expect_identical(r$fits, 0L)
+  expect_match(r$error, "polygon 6\\.1\\.1.*doFit")
+  ## a ledger fit
+  expect_identical(fitsInRun(localLedgerPaths(), list(), ledger = TRUE)$fits, 0L)          # default: reuse
+  expect_identical(fitsInRun(localLedgerPaths(), list(doFit = NA), ledger = TRUE)$fits, 0L)
+  expect_identical(fitsInRun(localLedgerPaths(), list(doFit = FALSE), ledger = TRUE)$fits, 0L)
+  expect_gt(fitsInRun(localLedgerPaths(), list(doFit = TRUE), ledger = TRUE)$fits, 0L)    # replace it
+})
+
+test_that("refitExisting is a deprecated alias of doFit = TRUE, with a message naming doFit", {
+  r <- fitsInRun(localLedgerPaths(), list(refitExisting = TRUE), ledger = TRUE)
+  expect_gt(r$fits, 0L)
+  expect_length(grep("refitExisting.*deprecated.*doFit", r$msgs), 1L)
+  ## FALSE is the old default: it does nothing, and says nothing about doFit = TRUE
+  expect_identical(fitsInRun(localLedgerPaths(), list(refitExisting = FALSE), ledger = TRUE)$fits, 0L)
+  ## an explicit doFit is not overridden by the alias
+  expect_identical(fitsInRun(localLedgerPaths(), list(doFit = FALSE, refitExisting = TRUE), ledger = TRUE)$fits, 0L)
+  ## no deprecated parameter set: no deprecation message
+  expect_length(grep("deprecated", fitsInRun(localLedgerPaths(), list(doFit = NA), ledger = TRUE)$msgs), 0L)
 })
 
 test_that("writeIgnitionLedgerRow stops on an invalid .ELFind, as fireSense_SpreadFit does", {
