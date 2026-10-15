@@ -2994,8 +2994,8 @@ border-radius: 0px;
 
 
 <h1 class="title toc-ignore">fireSense_ignitionFit Manual</h1>
-<h3 class="subtitle">v.1.2.0.9001</h3>
-<h4 class="date">Last updated: 2026-10-14</h4>
+<h3 class="subtitle">v.1.2.0.9004</h3>
+<h4 class="date">Last updated: 2026-10-15</h4>
 
 </div>
 
@@ -3353,6 +3353,26 @@ Should this entire module be run with caching activated? This is generally inten
 </tr>
 <tr>
 <td style="text-align:left;">
+.neverCache
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+checkData
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Events that are never cached, whatever <code>.useCache</code> says (read by SpaDES.core, 3.2.1.9037 or later): <code>checkData</code> reads the ignition-fit ledger on Google Drive, which is not in the event’s cache key, so a cached <code>checkData</code> would replay a stale answer to whether this polygon already has a fit.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
 ignitionFitGoogleDriveFolder
 </td>
 <td style="text-align:left;">
@@ -3393,22 +3413,42 @@ File name of the shared fit ledger: an <code>sf</code> object with one row per p
 </tr>
 <tr>
 <td style="text-align:left;">
+doFit
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Whether to fit this polygon. NA (default): do whatever is needed – use the ledger’s ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit’s INPUTS have changed, so the stored row is stale). FALSE: never fit – use the ledger’s fits, and stop with an error if it holds none for this polygon.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
 refitExisting
 </td>
 <td style="text-align:left;">
 logical
 </td>
 <td style="text-align:left;">
-FALSE
-</td>
-<td style="text-align:left;">
 NA
 </td>
 <td style="text-align:left;">
 NA
 </td>
 <td style="text-align:left;">
-FOR DEVELOPERS ONLY: fit this polygon even when the ledger already holds ignition and escape fits for it. A ledger row normally means the fit is done, and <code>run</code> skips it and uses the stored fits instead. Set this when the fit’s INPUTS have changed, so the stored row is stale and the polygon must be fitted again.
+NA
+</td>
+<td style="text-align:left;">
+DEPRECATED, use <code>doFit</code>. TRUE is <code>doFit = TRUE</code>; NA (unset) and FALSE do nothing.
 </td>
 </tr>
 </tbody>

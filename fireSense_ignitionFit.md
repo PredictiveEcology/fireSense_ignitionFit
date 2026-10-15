@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
-subtitle: "v.1.2.0.9001"
-date: "Last updated: 2026-10-14"
+subtitle: "v.1.2.0.9004"
+date: "Last updated: 2026-10-15"
 output:
   bookdown::html_document2:
     toc: true
@@ -199,6 +199,14 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> .neverCache </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> checkData </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Events that are never cached, whatever `.useCache` says (read by SpaDES.core, 3.2.1.9037 or later): `checkData` reads the ignition-fit ledger on Google Drive, which is not in the event's cache key, so a cached `checkData` would replay a stale answer to whether this polygon already has a fit. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> ignitionFitGoogleDriveFolder </td>
