@@ -1,5 +1,6 @@
 # fireSense_ignitionFit (development version)
 
+- `ignitionFitGoogleDriveFolder` defaults to `fireSenseUtils::ignitionFitLedgerFolder()`, which follows `options(fireSenseUtils.ignitionFitLedgerFolder = )`. `fireSenseUtils` floor raised to 0.2.3.9094, the first version with `ignitionFitLedgerFolder()`.
 - The Poisson fits go to their own ledger file, `fireSenseIgnitionParams_<years>_xgboostPoisson_20261013.rds` (`fireSenseUtils::ignitionFitFileTag`), so `"latest"` never reuses the old `reg:tweedie` rows in `..._xgboost.rds`. Needs fireSenseUtils >= 0.2.3.9092 (PredictiveEcology/fireSenseUtils#149). Tests take the file name from `ignitionFitFileTag`.
 
 - `runXGBOOST()` fits the ignition and escape models with `objective = "count:poisson"`, not `"reg:tweedie"`. With a log link and few positives, Tweedie lost predicted mass every boosting round: held-out predicted/observed ignitions were 0.34 for an ELF with 41 ignitions (0.97 with 9676), and 0.24 for escapes in an ELF with 20. Poisson gives 0.99-1.00 for ignitions and 0.81-1.04 for escapes, with equal or better held-out deviance. Fits stored in the ledger are not refitted automatically; use `refitExisting = TRUE`.
