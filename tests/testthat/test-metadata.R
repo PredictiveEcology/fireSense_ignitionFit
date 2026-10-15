@@ -39,7 +39,7 @@ test_that("parameters are the expected names", {
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   expect_identical(
     sort(md$parameters$paramName),
-    sort(c(".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
+    sort(c(".neverCache", ".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
            "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
            "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting"))
   )
@@ -51,7 +51,7 @@ test_that("parameters have the expected classes and defaults", {
   classes <- stats::setNames(unlist(p$paramClass), p$paramName)
   expect_identical(
     classes[order(names(classes))],
-    c(.plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
+    c(.neverCache = "character", .plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
       .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
       ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
       modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
