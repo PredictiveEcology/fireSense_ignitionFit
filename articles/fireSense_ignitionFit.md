@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
-subtitle: "v.1.2.0.9001"
-date: "Last updated: 2026-10-14"
+subtitle: "v.1.2.0.9004"
+date: "Last updated: 2026-10-15"
 output:
   bookdown::html_document2:
     toc: true
@@ -203,6 +203,14 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant. </td>
   </tr>
   <tr>
+   <td style="text-align:left;"> .neverCache </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> checkData </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Events that are never cached, whatever `.useCache` says (read by SpaDES.core, 3.2.1.9037 or later): `checkData` reads the ignition-fit ledger on Google Drive, which is not in the event's cache key, so a cached `checkData` would replay a stale answer to whether this polygon already has a fit. </td>
+  </tr>
+  <tr>
    <td style="text-align:left;"> ignitionFitGoogleDriveFolder </td>
    <td style="text-align:left;"> character </td>
    <td style="text-align:left;"> https://.... </td>
@@ -219,12 +227,20 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> File name of the shared fit ledger: an `sf` object with one row per polygon, holding its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `"latest"` (the default) reads and writes the file named for this fit's fire years and model, `fireSenseUtils::ignitionFitFilenameFor()`, e.g. `fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`. </td>
   </tr>
   <tr>
+   <td style="text-align:left;"> doFit </td>
+   <td style="text-align:left;"> logical </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Whether to fit this polygon. NA (default): do whatever is needed -- use the ledger's ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). FALSE: never fit -- use the ledger's fits, and stop with an error if it holds none for this polygon. </td>
+  </tr>
+  <tr>
    <td style="text-align:left;"> refitExisting </td>
    <td style="text-align:left;"> logical </td>
-   <td style="text-align:left;"> FALSE </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> FOR DEVELOPERS ONLY: fit this polygon even when the ledger already holds ignition and escape fits for it. A ledger row normally means the fit is done, and `run` skips it and uses the stored fits instead. Set this when the fit's INPUTS have changed, so the stored row is stale and the polygon must be fitted again. </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing. </td>
   </tr>
 </tbody>
 </table>
