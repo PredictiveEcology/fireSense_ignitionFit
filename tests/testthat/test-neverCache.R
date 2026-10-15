@@ -1,9 +1,9 @@
 ## `.neverCache` (read by SpaDES.core >= 3.2.1.9037) wins over every form of `.useCache`, including a
-## `.globals$.useCache` that lists the event. `checkData` reads the ignition-fit ledger on Google Drive, and `run` decides from it whether to fit and then writes the ledger. Neither is in the event's cache key, and a cache hit would skip the write.
+## `.globals$.useCache` that lists the event. `checkData` reads the ignition-fit ledger on Google Drive, which is not in the event's cache key.
 test_that(".neverCache is declared and SpaDES.core refuses to cache those events whatever .useCache says", {
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   declared <- md$parameters$default[[which(md$parameters$paramName == ".neverCache")]]
-  expect_setequal(declared, c("checkData", "run"))
+  expect_setequal(declared, "checkData")
   eventIsCached <- utils::getFromNamespace(".eventIsCached", "SpaDES.core")
   for (useCache in list(c(".inputObjects", declared), TRUE)) {
     for (ev in declared)

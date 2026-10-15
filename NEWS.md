@@ -1,6 +1,6 @@
 # fireSense_ignitionFit (development version)
 
-- Fixed: `checkData` and `run` are declared in the new `.neverCache` parameter, so they are never cached, even when `.useCache` (the module's or `.globals`) lists them. `checkData` reads the ignition-fit ledger on Google Drive and `run` decides from it whether to fit, then writes the ledger; the ledger is not part of the event's cache key, and a cache hit skips the write. Needs SpaDES.core >= 3.2.1.9037.
+- Fixed: `checkData` is declared in the new `.neverCache` parameter, so it is never cached, even when `.useCache` (the module's or `.globals`) lists it. It reads the ignition-fit ledger on Google Drive, which is not part of the event's cache key, so a cached `checkData` would replay a stale answer to whether this polygon already has a fit. Needs SpaDES.core >= 3.2.1.9037.
 
 - The Poisson fits go to their own ledger file, `fireSenseIgnitionParams_<years>_xgboostPoisson_20261013.rds` (`fireSenseUtils::ignitionFitFileTag`), so `"latest"` never reuses the old `reg:tweedie` rows in `..._xgboost.rds`. Needs fireSenseUtils >= 0.2.3.9092 (PredictiveEcology/fireSenseUtils#149). Tests take the file name from `ignitionFitFileTag`.
 
