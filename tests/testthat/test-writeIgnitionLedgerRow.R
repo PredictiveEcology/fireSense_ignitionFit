@@ -248,3 +248,44 @@ test_that("a stored ledger fit whose features are missing from the covariates is
   expect_identical(as.character(ledger$polygonID), "6.1.1")
   expect_true("Pice_new" %in% stats::variable.names(ledger$fireSense_IgnitionFitted[[1]]$modelList$model$Fold1))
 })
+
+## Real small boosters of a given objective, in the shape of a stored ledger fit.
+storedFitWith <- function(objective, folds = 2) {
+  dat <- scaleCovariates(makeIgnitionCovariates())
+  x <- dat[, c("CMDsm", "youngAge", "Pice_mar", "lightning")]
+  model <- lapply(seq_len(folds), function(i)
+    xgboost::xgboost(x = x, y = dat$ignitions, objective = objective, nrounds = 5, max_depth = 2,
+                     nthread = 1, verbosity = 0))
+  names(model) <- paste0("Fold", seq_len(folds))
+  list(modelList = list(model = model))
+}
+
+test_that("a stored fit made with another objective (reg:tweedie) is not reused, count:poisson is", {
+  covs <- makeIgnitionCovariates()
+  expect_true(storedFitIsCompatible(storedFitWith("count:poisson"), covs, "6.1.1", "ignition"))
+  expect_message(ok <- storedFitIsCompatible(storedFitWith("reg:tweedie"), covs, "6.1.1", "ignition"),
+                 "reg:tweedie.*count:poisson")
+  expect_false(ok)
+  ## one stray fold is enough
+  mixed <- storedFitWith("count:poisson")
+  mixed$modelList$model$Fold2 <- storedFitWith("reg:tweedie")$modelList$model$Fold1
+  expect_false(suppressMessages(storedFitIsCompatible(mixed, covs, "6.1.1", "ignition")))
+})
+
+test_that("writeIgnitionLedgerRow refuses a model fitted with another objective", {
+  sim <- list(.ELFind = "6.1.1", fireSense_IgnitionFitted = storedFitWith("count:poisson"),
+              fireSense_EscapeFitted = storedFitWith("reg:tweedie"))
+  expect_error(writeIgnitionLedgerRow(sim), "reg:tweedie.*count:poisson")
+})
+
+test_that("buildModel's cache key changes when the body of a function it calls changes", {
+  key <- function(callees) reproducible:::.robustDigest(callees)
+  base <- buildModelCallees()
+  expect_identical(key(base), key(buildModelCallees()))
+  edited <- base
+  body(edited$runXGBOOST) <- quote(stop("a different fit"))
+  expect_false(identical(key(base), key(edited)))
+  edited <- base
+  edited$xgbObjective <- "reg:tweedie"
+  expect_false(identical(key(base), key(edited)))
+})

@@ -35,6 +35,13 @@ writeIgnitionLedgerRow <- function(sim) {
          "identifying the polygon being fit; got: ",
          paste(format(polygonID), collapse = ", "))
 
+  for (fitted in list(sim$fireSense_IgnitionFitted, sim$fireSense_EscapeFitted)) {
+    foreign <- foreignObjectives(fitted)
+    if (length(foreign))
+      stop("fireSense_ignitionFit: will not write polygon ", polygonID, " to the ledger: a model was fitted with ",
+           paste(foreign, collapse = ", "), ", not ", xgbObjective)
+  }
+
   df <- data.frame(I(list(stripFittedForLedger(sim$fireSense_IgnitionFitted))),
                     I(list(stripFittedForLedger(sim$fireSense_EscapeFitted)))) |>
     setNames(fireSenseUtils::ignitionFitAdditionalColNamesTxt)

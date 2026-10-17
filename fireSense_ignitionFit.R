@@ -320,7 +320,8 @@ buildModelsFitModels <- function(igOrEsc, sim) {
                           modelAlgorithm = Par$modelAlgorithm) |>
     Cache(omitArgs = c("covariates"),
           .functionName = paste0("buildModel for ", igOrEsc),
-          .cacheExtra = c(data$digestOfData, 1), cacheSaveFormat = "rds") # doesn't work with qs
+          .cacheExtra = c(data$digestOfData, list(callees = buildModelCallees())),
+          cacheSaveFormat = "rds") # doesn't work with qs
   #ignition specific
   origNoPix <- attributes(sim$ignitionFitRTM)$nonNAs   ## nrow(preSampleData) in eg above
   finalNoPix <- nrow(data$covariates)     ## nrow(postSampleData) in eg above
@@ -358,7 +359,7 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 
 #' Fit cross-validated xgboost models
 #'
-#' One model per fold, Poisson objective (`count:poisson`), trained on all rows except the fold's, which are the
+#' One model per fold, Poisson objective (`xgbObjective`, `count:poisson`), trained on all rows except the fold's, which are the
 #' `eval_set`. Folds come from `cvFolds()`. For `type = "escape"` only rows with
 #' `ignitions > 0` are used. The RNG seed is fixed, and restored on exit, so folds repeat and
 #' caching works.
@@ -416,7 +417,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
         # xgboost objects do not save with `qs` ... must be `rds`
         mPoisson <- xgboost(x = dat3ForxgboostNoIgn[wholeDataset], # should be whole set
                             y = dat3Forxgboost[, get(ignOrEscapeColName)][wholeDataset],
-                            objective = "count:poisson",
+                            objective = xgbObjective,
                             nthread = 10,
                             eval_set = valInd, # should be keepEval
                             monitor_training = TRUE,
