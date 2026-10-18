@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
-subtitle: "v.1.2.0.9004"
-date: "Last updated: 2026-10-15"
+subtitle: "v.1.2.0.9005"
+date: "Last updated: 2026-10-18"
 output:
   bookdown::html_document2:
     toc: true
@@ -215,6 +215,14 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Google Drive folder url holding the shared ignition/escape fit ledger (`ignitionFitFilename`). `NULL` keeps the ledger purely local, in `inputPath(sim)`, with no Google Drive access at all (e.g. for tests). </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> fitFileSuffix </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Text put after the model tag in the ledger file names, e.g. `"_boundfix_rep81"`, so a test run writes and reads (`"latest"`) only its own files, never the production ones. `""` (the default) is the production ledger. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`; set it for all with `.globals = list(fitFileSuffix = ...)`; modules that disagree stop (`SpaDES.core::paramCheckOtherMods()`). Ignored when a file name is given. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> ignitionFitFilename </td>
