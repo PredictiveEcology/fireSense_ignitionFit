@@ -60,7 +60,7 @@ xgbFeatureNames <- function(cols) {
 #' xgboost boosters' `variable.names()`). If the covariates have since changed (e.g. non-forest
 #' land-cover groups merged into one), `predict()` fails on the missing columns. The stored fit is
 #' compatible when all its features are among the current covariate columns and every fold's booster
-#' was fitted with `xgbObjective`. Only xgboost fits
+#' was fitted with `fireSenseUtils::ignitionObjectiveTxt`. Only xgboost fits
 #' exist (`buildModel()` stops for any other algorithm). Messages name what is missing and extra.
 #'
 #' @param fitted A stored `list(modelList = list(model = ...), ...)`, or `NULL`.
@@ -77,7 +77,7 @@ storedFitIsCompatible <- function(fitted, covariates, polygonID = "", type = "ig
   foreign <- foreignObjectives(fitted)
   if (length(foreign)) {
     message("fireSense_ignitionFit: the stored ", type, " model for polygon ", polygonID,
-            " was fitted with objective ", paste(foreign, collapse = ", "), ", not ", xgbObjective,
+            " was fitted with objective ", paste(foreign, collapse = ", "), ", not ", fireSenseUtils::ignitionObjectiveTxt,
             ". Fitting again.")
     return(FALSE)
   }
@@ -110,48 +110,28 @@ useExistingFitIsCompatible <- function(sim) {
   all(ok)
 }
 
-#' The xgboost objective this module fits with
-#'
-#' Defined once: `runXGBOOST()` fits with it, `boosterObjective()` checks stored fits against it,
-#' and `buildModelCallees()` puts it in the `buildModel()` cache key.
-xgbObjective <- "count:poisson"
-
 #' The functions whose bodies decide what `buildModel()` returns
 #'
 #' `Cache()` digests the function it is given by its own text only, so a change inside `runXGBOOST()`
 #' (the objective moved from `reg:tweedie` to `count:poisson`) left the key of
 #' `buildModel()` unchanged and a refit returned the old boosters. These go in its `.cacheExtra`.
 #'
-#' @return Named list of the functions and `xgbObjective`.
+#' @return Named list of the functions and `fireSenseUtils::ignitionObjectiveTxt`.
 buildModelCallees <- function() {
   list(runXGBOOST = runXGBOOST, cvFolds = cvFolds, stopIfFoldsLackPositives = stopIfFoldsLackPositives,
        xgbFeatureNames = xgbFeatureNames, rocPerFold = rocPerFold, aucPerFold = aucPerFold,
-       xgbObjective = xgbObjective)
-}
-
-#' The objective an xgboost booster was fitted with
-#'
-#' Reads `xgboost::xgb.config(booster)$learner$objective$name`, then `attr(booster, "params")$objective`,
-#' as `fireSense_ignitionPredict` does to tell `fireSense_burn` how to draw counts.
-#'
-#' @param booster An `xgb.Booster`.
-#' @return A single string, or `NA_character_` if neither source has one.
-boosterObjective <- function(booster) {
-  isOne <- function(x) is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x)
-  o <- tryCatch(xgboost::xgb.config(booster)$learner$objective$name, error = function(e) NULL)
-  if (!isOne(o)) o <- tryCatch(attr(booster, "params")$objective, error = function(e) NULL)
-  if (isOne(o)) o else NA_character_
+       ignitionObjectiveTxt = fireSenseUtils::ignitionObjectiveTxt)
 }
 
 #' Were all of a stored fit's fold boosters fitted with this module's objective?
 #'
 #' @param fitted A `list(modelList = list(model = ...), ...)`, or `NULL`.
-#' @return A character vector of the objectives that differ from `xgbObjective` (empty when all
+#' @return A character vector of the objectives that differ from `fireSenseUtils::ignitionObjectiveTxt` (empty when all
 #'   match); `"unknown"` stands for a booster whose objective cannot be read.
 foreignObjectives <- function(fitted) {
   boosters <- fitted$modelList$model
   boosters <- boosters[grep("^Fold", names(boosters))]
-  obj <- vapply(boosters, boosterObjective, "")
+  obj <- fireSenseUtils::xgbObjective(boosters)
   obj[is.na(obj)] <- "unknown"
-  unique(obj[obj != xgbObjective])
+  unique(obj[obj != fireSenseUtils::ignitionObjectiveTxt])
 }

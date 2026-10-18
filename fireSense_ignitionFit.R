@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9098)",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9104)",
                   "ggplot2", "ggpubr", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -67,6 +67,12 @@ defineModule(sim, list(
                     NA, NA, paste("Google Drive folder url holding the shared ignition/escape fit ledger",
                                   "(`ignitionFitFilename`). `NULL` keeps the ledger purely local, in",
                                   "`inputPath(sim)`, with no Google Drive access at all (e.g. for tests).")),
+    defineParameter("fitFileSuffix", "character", "", NA, NA,
+                    paste("Text put after the model tag in the ledger file names, e.g. `\"_boundfix_rep81\"`, so a test run",
+                          "writes and reads (`\"latest\"`) only its own files, never the production ones. `\"\"` (the",
+                          "default) is the production ledger. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`;",
+                          "set it for all with `.globals = list(fitFileSuffix = ...)`; modules that disagree stop",
+                          "(`SpaDES.core::paramCheckOtherMods()`). Ignored when a file name is given.")),
     defineParameter("ignitionFitFilename", "character", "latest",
                     NA, NA, paste("File name of the shared fit ledger: an `sf` object with one row per polygon, holding",
                                   "its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `\"latest\"` (the",
@@ -359,7 +365,7 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 
 #' Fit cross-validated xgboost models
 #'
-#' One model per fold, Poisson objective (`xgbObjective`, `count:poisson`), trained on all rows except the fold's, which are the
+#' One model per fold, Poisson objective (`fireSenseUtils::ignitionObjectiveTxt`, `count:poisson`), trained on all rows except the fold's, which are the
 #' `eval_set`. Folds come from `cvFolds()`. For `type = "escape"` only rows with
 #' `ignitions > 0` are used. The RNG seed is fixed, and restored on exit, so folds repeat and
 #' caching works.
@@ -417,7 +423,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
         # xgboost objects do not save with `qs` ... must be `rds`
         mPoisson <- xgboost(x = dat3ForxgboostNoIgn[wholeDataset], # should be whole set
                             y = dat3Forxgboost[, get(ignOrEscapeColName)][wholeDataset],
-                            objective = xgbObjective,
+                            objective = fireSenseUtils::ignitionObjectiveTxt,
                             nthread = 10,
                             eval_set = valInd, # should be keepEval
                             monitor_training = TRUE,

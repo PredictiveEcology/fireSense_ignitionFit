@@ -71,6 +71,16 @@ test_that("a fit writes one ledger row per polygon, with rocs stripped", {
   expect_identical(ledgerFit$scaleData, sim$fireSense_IgnitionFitted$scaleData)
 })
 
+test_that("with fitFileSuffix the fit goes to its own ledger file and the production name is untouched", {
+  paths <- localLedgerPaths()
+  runIgnitionModule(paths, params = list(.plots = NA, ignitionFitGoogleDriveFolder = NULL,
+                                         fitFileSuffix = "_boundfix_rep81"),
+                    objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
+  files <- list.files(paths$inputPath, pattern = "^fireSenseIgnitionParams_.*\\.rds$")
+  expect_identical(files, sub("\\.rds$", "_boundfix_rep81.rds", ledgerName))
+  expect_identical(ignitionLedgerWriteFile("mine.rds", 2001:2004, "_x"), "mine.rds")  # a named file is used as given
+})
+
 test_that("a stored ledger fit is used instead of refitting, and predict() still works on it", {
   paths <- localLedgerPaths()
   sa <- studyAreaToy()
@@ -286,6 +296,6 @@ test_that("buildModel's cache key changes when the body of a function it calls c
   body(edited$runXGBOOST) <- quote(stop("a different fit"))
   expect_false(identical(key(base), key(edited)))
   edited <- base
-  edited$xgbObjective <- "reg:tweedie"
+  edited$ignitionObjectiveTxt <- "reg:tweedie"
   expect_false(identical(key(base), key(edited)))
 })
