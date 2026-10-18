@@ -71,6 +71,16 @@ test_that("a fit writes one ledger row per polygon, with rocs stripped", {
   expect_identical(ledgerFit$scaleData, sim$fireSense_IgnitionFitted$scaleData)
 })
 
+test_that("with fitFileSuffix the fit goes to its own ledger file and the production name is untouched", {
+  paths <- localLedgerPaths()
+  runIgnitionModule(paths, params = list(.plots = NA, ignitionFitGoogleDriveFolder = NULL,
+                                         fitFileSuffix = "_boundfix_rep81"),
+                    objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
+  files <- list.files(paths$inputPath, pattern = "^fireSenseIgnitionParams_.*\\.rds$")
+  expect_identical(files, sub("\\.rds$", "_boundfix_rep81.rds", ledgerName))
+  expect_identical(ignitionLedgerWriteFile("mine.rds", 2001:2004, "_x"), "mine.rds")  # a named file is used as given
+})
+
 test_that("a stored ledger fit is used instead of refitting, and predict() still works on it", {
   paths <- localLedgerPaths()
   sa <- studyAreaToy()
@@ -247,4 +257,45 @@ test_that("a stored ledger fit whose features are missing from the covariates is
   ledger <- readRDS(file.path(paths$inputPath, ledgerName))
   expect_identical(as.character(ledger$polygonID), "6.1.1")
   expect_true("Pice_new" %in% stats::variable.names(ledger$fireSense_IgnitionFitted[[1]]$modelList$model$Fold1))
+})
+
+## Real small boosters of a given objective, in the shape of a stored ledger fit.
+storedFitWith <- function(objective, folds = 2) {
+  dat <- scaleCovariates(makeIgnitionCovariates())
+  x <- dat[, c("CMDsm", "youngAge", "Pice_mar", "lightning")]
+  model <- lapply(seq_len(folds), function(i)
+    xgboost::xgboost(x = x, y = dat$ignitions, objective = objective, nrounds = 5, max_depth = 2,
+                     nthread = 1, verbosity = 0))
+  names(model) <- paste0("Fold", seq_len(folds))
+  list(modelList = list(model = model))
+}
+
+test_that("a stored fit made with another objective (reg:tweedie) is not reused, count:poisson is", {
+  covs <- makeIgnitionCovariates()
+  expect_true(storedFitIsCompatible(storedFitWith("count:poisson"), covs, "6.1.1", "ignition"))
+  expect_message(ok <- storedFitIsCompatible(storedFitWith("reg:tweedie"), covs, "6.1.1", "ignition"),
+                 "reg:tweedie.*count:poisson")
+  expect_false(ok)
+  ## one stray fold is enough
+  mixed <- storedFitWith("count:poisson")
+  mixed$modelList$model$Fold2 <- storedFitWith("reg:tweedie")$modelList$model$Fold1
+  expect_false(suppressMessages(storedFitIsCompatible(mixed, covs, "6.1.1", "ignition")))
+})
+
+test_that("writeIgnitionLedgerRow refuses a model fitted with another objective", {
+  sim <- list(.ELFind = "6.1.1", fireSense_IgnitionFitted = storedFitWith("count:poisson"),
+              fireSense_EscapeFitted = storedFitWith("reg:tweedie"))
+  expect_error(writeIgnitionLedgerRow(sim), "reg:tweedie.*count:poisson")
+})
+
+test_that("buildModel's cache key changes when the body of a function it calls changes", {
+  key <- function(callees) reproducible:::.robustDigest(callees)
+  base <- buildModelCallees()
+  expect_identical(key(base), key(buildModelCallees()))
+  edited <- base
+  body(edited$runXGBOOST) <- quote(stop("a different fit"))
+  expect_false(identical(key(base), key(edited)))
+  edited <- base
+  edited$ignitionObjectiveTxt <- "reg:tweedie"
+  expect_false(identical(key(base), key(edited)))
 })

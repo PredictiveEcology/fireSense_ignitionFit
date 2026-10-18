@@ -4,15 +4,17 @@
 #' module reads for `sim$ignitionFitPreRun` (in `Init()`) is exactly the file it would write to
 #' (in `writeIgnitionLedgerRow()`) -- unlike `fireSense_dataPrepFit`'s `spreadFitFilename`, which
 #' reads a fixed name because that module has no fit of its own to name the file after. Any other
-#' `ignitionFitFilename` is used as it is. Parallel to fireSense_SpreadFit's `ledgerWriteFile()`.
+#' `ignitionFitFilename` is used as it is, and `fitFileSuffix` does not apply. Parallel to fireSense_SpreadFit's `ledgerWriteFile()`.
 #'
 #' @param ignitionFitFilename The module's `ignitionFitFilename` parameter.
+#' @param fitFileSuffix The `fitFileSuffix` parameter, agreed with the other fit modules
+#'   (`SpaDES.core::paramCheckOtherMods()`).
 #' @param fireYears The years of the covariates this run fit on (see [ignitionFitYears()]).
 #' @return A file name.
-ignitionLedgerWriteFile <- function(ignitionFitFilename, fireYears) {
+ignitionLedgerWriteFile <- function(ignitionFitFilename, fireYears, fitFileSuffix = "") {
   if (!identical(ignitionFitFilename, "latest"))
     return(ignitionFitFilename)
-  fireSenseUtils::ignitionFitFilenameFor(fireYears)
+  fireSenseUtils::ignitionFitFilenameFor(fireYears, fitFileSuffix)
 }
 
 #' The fire years this run's covariates cover

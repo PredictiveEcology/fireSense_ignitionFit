@@ -35,6 +35,13 @@ writeIgnitionLedgerRow <- function(sim) {
          "identifying the polygon being fit; got: ",
          paste(format(polygonID), collapse = ", "))
 
+  for (fitted in list(sim$fireSense_IgnitionFitted, sim$fireSense_EscapeFitted)) {
+    foreign <- foreignObjectives(fitted)
+    if (length(foreign))
+      stop("fireSense_ignitionFit: will not write polygon ", polygonID, " to the ledger: a model was fitted with ",
+           paste(foreign, collapse = ", "), ", not ", fireSenseUtils::ignitionObjectiveTxt)
+  }
+
   df <- data.frame(I(list(stripFittedForLedger(sim$fireSense_IgnitionFitted))),
                     I(list(stripFittedForLedger(sim$fireSense_EscapeFitted)))) |>
     setNames(fireSenseUtils::ignitionFitAdditionalColNamesTxt)
@@ -65,7 +72,8 @@ writeIgnitionLedgerRow <- function(sim) {
 ignitionLedgerCacheGeo <- function(sim, ...) {
   CacheGeo(
     cloudFolderID = Par$ignitionFitGoogleDriveFolder,
-    targetFile = ignitionLedgerWriteFile(Par$ignitionFitFilename, ignitionFitYears(sim)),
+    targetFile = ignitionLedgerWriteFile(Par$ignitionFitFilename, ignitionFitYears(sim),
+                                  SpaDES.core::paramCheckOtherMods(sim, "fitFileSuffix")),
     destinationPath = inputPath(sim),
     ## `purge` re-downloads from the cloud copy; with no cloud folder there is nothing to
     ## re-download, and `prepInputs()` then cannot find the local file it just set aside.
