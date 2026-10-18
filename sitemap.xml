@@ -11,11 +11,13 @@
 <url><loc>/reference/Init.html</loc></url>
 <url><loc>/reference/aucPerFold.html</loc></url>
 <url><loc>/reference/buildModel.html</loc></url>
+<url><loc>/reference/buildModelCallees.html</loc></url>
 <url><loc>/reference/buildModelsFitModels.html</loc></url>
 <url><loc>/reference/cvFolds.html</loc></url>
 <url><loc>/reference/dataDigest.html</loc></url>
 <url><loc>/reference/doEvent.fireSense_ignitionFit.html</loc></url>
 <url><loc>/reference/dot-inputObjects.html</loc></url>
+<url><loc>/reference/foreignObjectives.html</loc></url>
 <url><loc>/reference/frequencyFitRun.html</loc></url>
 <url><loc>/reference/functionNameHelper.html</loc></url>
 <url><loc>/reference/hasPreRunIgnitionFitForThisPolygon.html</loc></url>

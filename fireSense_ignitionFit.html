@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9005</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9006</span>
       </span>
     </div>
 
@@ -349,6 +349,24 @@ NA
 Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant.
 </td>
 </tr><tr><td style="text-align:left;">
+.neverCache
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+checkData
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Events that are never cached, whatever <code>.useCache</code> says (read by SpaDES.core, 3.2.1.9037 or later): <code>checkData</code> reads the ignition-fit ledger on Google Drive, which is not in the event’s cache key, so a cached <code>checkData</code> would replay a stale answer to whether this polygon already has a fit.
+</td>
+</tr><tr><td style="text-align:left;">
 ignitionFitGoogleDriveFolder
 </td>
 <td style="text-align:left;">
@@ -365,6 +383,23 @@ NA
 </td>
 <td style="text-align:left;">
 Google Drive folder url holding the shared ignition/escape fit ledger (<code>ignitionFitFilename</code>). <code>NULL</code> keeps the ledger purely local, in <code>inputPath(sim)</code>, with no Google Drive access at all (e.g. for tests).
+</td>
+</tr><tr><td style="text-align:left;">
+fitFileSuffix
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Text put after the model tag in the ledger file names, e.g. <code>"_boundfix_rep81"</code>, so a test run writes and reads (<code>"latest"</code>) only its own files, never the production ones. <code>""</code> (the default) is the production ledger. The same parameter of <code>fireSense_spreadFit</code>, <code>fireSense_dataPrepFit</code> and <code>fireSense_ELFs</code>; set it for all with <code>.globals = list(fitFileSuffix = ...)</code>; modules that disagree stop (<code><a href="https://spades-core.predictiveecology.org/reference/paramCheckOtherMods.html" class="external-link">SpaDES.core::paramCheckOtherMods()</a></code>). Ignored when a file name is given.
 </td>
 </tr><tr><td style="text-align:left;">
 ignitionFitFilename
