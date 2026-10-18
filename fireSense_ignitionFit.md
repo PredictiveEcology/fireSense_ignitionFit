@@ -1,6 +1,6 @@
 ---
 title: "fireSense_ignitionFit Manual"
-subtitle: "v.1.2.0.9005"
+subtitle: "v.1.2.0.9006"
 date: "Last updated: 2026-10-18"
 output:
   bookdown::html_document2:
