@@ -41,7 +41,7 @@ test_that("without studyArea, nothing changes: no ledger is read or written", {
   sim <- runIgnitionModule(paths, params = list(.plots = NA), objects = list(.ELFind = "6.1.1"))
   expect_null(sim$ignitionFitPreRun)
   expect_length(list.files(paths$inputPath, pattern = "fireSenseIgnitionParams"), 0L)
-  expect_identical(names(sim$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs"))
+  expect_identical(names(sim$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
 })
 
 ## the model tag is fireSenseUtils' to set; only the years come from this module
@@ -62,7 +62,10 @@ test_that("a fit writes one ledger row per polygon, with rocs stripped", {
   ledgerEsc <- sim$ignitionFitPreRun$fireSense_EscapeFitted[[1]]
   expect_null(ledgerFit$modelList$model$rocs)                     # stripped before writing
   expect_null(ledgerEsc$modelList$model$rocs)
-  expect_identical(names(ledgerFit$modelList$model), paste0("Fold", 1:5))
+  expect_identical(names(ledgerFit$modelList$model), c(paste0("Fold", 1:5), "yearTotals"))
+  ## the year effect's sd travels with the fit, for fireSense_ignitionPredict to pass to fireSense_burn
+  expect_identical(ledgerFit$modelList$yearSD, sim$fireSense_IgnitionFitted$modelList$yearSD)
+  expect_identical(ledgerEsc$modelList$yearSD, sim$fireSense_EscapeFitted$modelList$yearSD)
 
   ## the live sim objects (not round-tripped) still have rocs: only the ledger copy is stripped
   expect_false(is.null(sim$fireSense_IgnitionFitted$modelList$model$rocs))
@@ -136,7 +139,7 @@ test_that("doFit = TRUE fits again even when the ledger already has a row", {
     .package = gsub("_", ".", moduleName, fixed = TRUE))
   sim2 <- runIgnitionModule(paths, params = c(commonParams, list(doFit = TRUE)),
                             objects = list(.ELFind = "6.1.1", studyArea = sa))
-  expect_identical(names(sim2$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs"))
+  expect_identical(names(sim2$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
   ## the refit replaces the polygon's row; it does not add a second one
   ledger <- readRDS(file.path(paths$inputPath, ledgerName))
   expect_identical(as.character(ledger$polygonID), "6.1.1")
