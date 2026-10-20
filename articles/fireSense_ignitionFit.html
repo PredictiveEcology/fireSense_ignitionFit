@@ -73,7 +73,7 @@
       <h1 data-toc-skip>fireSense_ignitionFit Manual</h1>
             <h3 data-toc-skip class="subtitle">v.1.2.0.9006</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-10-18</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-10-20</h4>
       
 
       <div class="hidden name"><code>fireSense_ignitionFit.Rmd</code></div>
@@ -612,7 +612,7 @@ fireSense_IgnitionFitted
 fireSense_IgnitionFit
 </td>
 <td style="text-align:left;">
-List of <code>modelList</code> (class <code>fireSense_IgnitionFit</code>: <code>model</code>, the per-fold xgboost models and their ROC curves, <code>fittingRes</code>, <code>lambdaRescaleFactor</code>, <code>rescales</code>) and <code>scaleData</code> (centre and scale used to standardise the covariates). Either freshly fitted, or, when <code>studyArea</code> matches a row of the shared ledger, read from it.
+List of <code>modelList</code> (class <code>fireSense_IgnitionFit</code>: <code>model</code>, the per-fold xgboost models and their ROC curves and out-of-fold <code>yearTotals</code>, <code>fittingRes</code>, <code>lambdaRescaleFactor</code>, <code>rescales</code>, <code>yearSD</code>: the sd of the year effect that <code>fireSense_burn</code> draws; absent in fits stored before it existed, which means 0) and <code>scaleData</code> (centre and scale used to standardise the covariates). Either freshly fitted, or, when <code>studyArea</code> matches a row of the shared ledger, read from it.
 </td>
 </tr>
 <tr>

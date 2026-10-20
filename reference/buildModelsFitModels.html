@@ -78,7 +78,9 @@
     <p>List of <code>modelList</code>, of class <code>fireSense_IgnitionFit</code> or <code>fireSense_EscapeFit</code>, and
 <code>scaleData</code>, the centre and scale used to standardise the covariates. <code>modelList</code> holds
 <code>model</code> (from <code><a href="buildModel.html">buildModel()</a></code>), <code>rescales</code>, <code>fittingRes</code> (resolution of <code>ignitionFitRTM</code>),
-<code>lambdaRescaleFactor</code> (rows of covariates / non-NA cells of <code>ignitionFitRTM</code>).</p>
+<code>lambdaRescaleFactor</code> (rows of covariates / non-NA cells of <code>ignitionFitRTM</code>) and <code>yearSD</code>, the sd
+of the year effect on the predicted mean (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/yearEffect.html" class="external-link">fireSenseUtils::yearEffectSD()</a></code> of the out-of-fold
+<code>model$yearTotals</code>), which <code>fireSense_burn</code> draws each year, with one z shared by ignitions, escapes and spread.</p>
     </div>
 
   </div>

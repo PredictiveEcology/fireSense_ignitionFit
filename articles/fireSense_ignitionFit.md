@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.2.0.9006"
-date: "Last updated: 2026-10-18"
+date: "Last updated: 2026-10-20"
 output:
   bookdown::html_document2:
     toc: true
@@ -286,7 +286,7 @@ Outputs are in Table \@ref(tab:moduleOutputs-fireSense-ignitionFit).
   <tr>
    <td style="text-align:left;"> fireSense_IgnitionFitted </td>
    <td style="text-align:left;"> fireSense_IgnitionFit </td>
-   <td style="text-align:left;"> List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models and their ROC curves, `fittingRes`, `lambdaRescaleFactor`, `rescales`) and `scaleData` (centre and scale used to standardise the covariates). Either freshly fitted, or, when `studyArea` matches a row of the shared ledger, read from it. </td>
+   <td style="text-align:left;"> List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models and their ROC curves and out-of-fold `yearTotals`, `fittingRes`, `lambdaRescaleFactor`, `rescales`, `yearSD`: the sd of the year effect that `fireSense_burn` draws; absent in fits stored before it existed, which means 0) and `scaleData` (centre and scale used to standardise the covariates). Either freshly fitted, or, when `studyArea` matches a row of the shared ledger, read from it. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> ignitionFitPreRun </td>
