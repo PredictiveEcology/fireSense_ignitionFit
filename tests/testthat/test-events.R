@@ -42,8 +42,12 @@ test_that("init schedules checkData then run, and both processes are fitted and 
     fitted <- sim[[nm]]
     expect_identical(names(fitted), c("modelList", "scaleData"))
     ml <- fitted$modelList
-    expect_identical(names(ml), c("model", "rescales", "fittingRes", "lambdaRescaleFactor"))
-    expect_identical(names(ml$model), c(paste0("Fold", 1:5), "rocs"))
+    expect_identical(names(ml), c("model", "rescales", "fittingRes", "lambdaRescaleFactor", "yearSD"))
+    expect_identical(names(ml$model), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
+    ## the year effect's sd, from the out-of-fold yearly totals of the 4 synthetic years
+    expect_identical(nrow(ml$model$yearTotals), 4L)
+    expect_identical(ml$yearSD, fireSenseUtils::yearEffectSD(ml$model$yearTotals$observed, ml$model$yearTotals$predicted))
+    expect_gte(ml$yearSD, 0)
     expect_equal(ml$fittingRes, 250)                       # cell size of ignitionFitRTM, m
     expect_equal(ml$lambdaRescaleFactor, 0.4)              # 400 rows / 1000 non-NA cells
     expect_null(ml$rescales)
@@ -91,7 +95,7 @@ test_that("init schedules checkData then run, and both processes are fitted and 
 test_that("only the requested process is fitted, nothing is plotted without .plots, and run repeats", {
   sim <- runModule(params = list(whichProcessesToFit = "ignition", .plots = NA, .runInterval = 1),
                    end = 2, drop = "fireSense_escapeCovariates")
-  expect_identical(names(sim$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs"))
+  expect_identical(names(sim$fireSense_IgnitionFitted$modelList$model), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
   expect_null(sim$fireSense_EscapeFitted)
   expect_length(list.files(SpaDES.core::figurePath(sim), recursive = TRUE), 0L)
 

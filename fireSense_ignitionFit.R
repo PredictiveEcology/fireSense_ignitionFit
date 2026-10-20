@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9104)",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9111)",
                   "ggplot2", "ggpubr", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -115,7 +115,9 @@ defineModule(sim, list(
                                "`studyArea` matches a row of the shared ledger, read from it.")),
     createsOutput("fireSense_IgnitionFitted", "fireSense_IgnitionFit",
                   desc = paste("List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models",
-                               "and their ROC curves, `fittingRes`, `lambdaRescaleFactor`, `rescales`)",
+                               "and their ROC curves and out-of-fold `yearTotals`, `fittingRes`, `lambdaRescaleFactor`,",
+                               "`rescales`, `yearSD`: the sd of the year effect that `fireSense_burn` draws; absent in fits",
+                               "stored before it existed, which means 0)",
                                "and `scaleData` (centre and scale used to standardise the covariates). Either freshly",
                                "fitted, or, when `studyArea` matches a row of the shared ledger, read from it.")),
     createsOutput("ignitionFitPreRun", "data.frame",
@@ -311,7 +313,9 @@ dataDigest <- function(data) {
 #' @return List of `modelList`, of class `fireSense_IgnitionFit` or `fireSense_EscapeFit`, and
 #'   `scaleData`, the centre and scale used to standardise the covariates. `modelList` holds
 #'   `model` (from `buildModel()`), `rescales`, `fittingRes` (resolution of `ignitionFitRTM`),
-#'   `lambdaRescaleFactor` (rows of covariates / non-NA cells of `ignitionFitRTM`).
+#'   `lambdaRescaleFactor` (rows of covariates / non-NA cells of `ignitionFitRTM`) and `yearSD`, the sd
+#'   of the year effect on the predicted mean (`fireSenseUtils::yearEffectSD()` of the out-of-fold
+#'   `model$yearTotals`), which `fireSense_burn` draws each year, with one z shared by ignitions, escapes and spread.
 buildModelsFitModels <- function(igOrEsc, sim) {
   covariatesHere <- igOrEscNames(igOrEsc, post = "Covariates")
   data <- prepareCovariatesOuter(sim[[covariatesHere]], 
@@ -337,7 +341,8 @@ buildModelsFitModels <- function(igOrEsc, sim) {
     model = modelHere,
     rescales = data$ignitionRescalers,
     fittingRes = res(sim$ignitionFitRTM)[1],
-    lambdaRescaleFactor = lambdaRescaleFactor)
+    lambdaRescaleFactor = lambdaRescaleFactor,
+    yearSD = fireSenseUtils::yearEffectSD(modelHere$yearTotals$observed, modelHere$yearTotals$predicted))
 
   class(modelList) <- igOrEscNames(igOrEsc, post = "Fit", case = "Title")
 
@@ -375,7 +380,8 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 #' @param dig Digest of the unscaled covariates, used to cache the creation of dummy variables.
 #' @param type `"ignition"` or `"escape"`; also the pattern that finds the response column.
 #' @param nFolds Number of folds.
-#' @return List of the `nFolds` xgboost models, named `Fold1`, ..., plus `rocs` from `rocPerFold()`.
+#' @return List of the `nFolds` xgboost models, named `Fold1`, ..., plus `rocs` from `rocPerFold()` and
+#'   `yearTotals` from `outOfFoldYearTotals()`.
 runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   dat3Forxgboost <- dat
 
@@ -399,6 +405,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
     dat3Forxgboost <- dat3Forxgboost[ignitions > 0]
   }
   trainIndexK <- cvFolds(dat3Forxgboost[[grep(value = TRUE, type, colnames(dat3Forxgboost))]], nFolds)
+  yearOfRow <- dat3Forxgboost[[fireSenseUtils::yearTxt]] # dropped from the features below
 
   colOrder <- setdiff(colnames(dat3Forxgboost), c("pixelID", "year"))
   colOrder <- colOrder[colOrder %in% grep("yearChar", colnames(dat3Forxgboost), invert = TRUE, value = TRUE)]
@@ -462,8 +469,10 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   rocs <- rocPerFold(mm, ignOrEscapeColName)
   aucs <- aucPerFold(rocs)
   print(meanRocMessage(aucs))
+  yearTotals <- outOfFoldYearTotals(yearOfRow, dat3Forxgboost[[ignOrEscapeColName]], trainIndexK,
+                                    lapply(mm, function(m) m$valData$predPoisson))
   mm2 <- Map(m = mm, function(m) m$mod)
-  mm2 <- append(mm2, list(rocs = rocs))
+  mm2 <- append(mm2, list(rocs = rocs, yearTotals = yearTotals))
 
   return(mm2)
 }

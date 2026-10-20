@@ -19,7 +19,7 @@ test_that("runXGBOOST returns one model per fold, fitted on the covariates only"
   set.seed(42)
   m <- fitQuietly(data.table::copy(dat), dig = "test", type = "ignition", nFolds = 5)
 
-  expect_identical(names(m), c(paste0("Fold", 1:5), "rocs"))
+  expect_identical(names(m), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
   expect_identical(names(m$rocs), paste0("Fold", 1:5))
   for (fold in paste0("Fold", 1:5)) {
     ## pixelID, year and the response do not reach the model; the rest do, in alphabetical order
@@ -86,7 +86,7 @@ test_that("the number of folds", {
   dat <- scaleCovariates(makeIgnitionCovariates())
   set.seed(42)
   m3 <- fitQuietly(data.table::copy(dat), dig = "test", type = "ignition", nFolds = 3)
-  expect_identical(names(m3), c("Fold1", "Fold2", "Fold3", "rocs"))
+  expect_identical(names(m3), c("Fold1", "Fold2", "Fold3", "rocs", "yearTotals"))
   heldOut <- vapply(m3$rocs, function(r) length(r$response), numeric(1))
   expect_identical(sum(heldOut), 400)                  # 3 folds still cover every row once
 })
@@ -136,7 +136,7 @@ test_that("buildModel with xgboost fits runXGBOOST on integer responses", {
     res <- buildModel(covariates = dat, type = "ignition",
                       dig = "test", modelAlgorithm = "xgboost", nFolds = 4)
   )))
-  expect_identical(names(res), c(paste0("Fold", 1:4), "rocs"))            # nFolds is passed on
+  expect_identical(names(res), c(paste0("Fold", 1:4), "rocs", "yearTotals"))            # nFolds is passed on
   expect_equal(unname(aucPerFold(res$rocs)), rep(1, 4))
   expect_type(dat$ignitions, "integer")                                  # converted by reference
   expect_identical(sum(dat$ignitions), 83L)                              # 39 * 1 + 22 * 2
@@ -158,4 +158,26 @@ test_that("with few ignitions the models still predict about the observed total"
   predTotal <- rowMeans(sapply(m[paste0("Fold", 1:5)], function(mod) predict(mod, X)))
   ## reg:tweedie gave 0.67 here
   expect_equal(sum(predTotal) / sum(dat$ignitions), 1, tolerance = 0.1)
+})
+
+test_that("yearTotals holds each year's observed total and its out-of-fold predicted total", {
+  fitCache()
+  raw <- makeIgnitionCovariates(escapes = TRUE)
+  dat <- scaleCovariates(raw)
+  for (type in c("ignition", "escape")) {
+    m <- fitQuietly(data.table::copy(dat), dig = "test", type = type, nFolds = 5)
+    yt <- m$yearTotals
+    rows <- if (type == "escape") raw$ignitions > 0 else rep(TRUE, nrow(raw))
+    resp <- if (type == "escape") raw$escapes else raw$ignitions
+    ## one row per year, in the year column as fitted (standardised here)
+    expect_identical(nrow(yt), 4L)
+    expect_equal(yt$observed, as.numeric(tapply(resp[rows], raw$year[rows], sum)), ignore_attr = TRUE)
+    ## every row is predicted once, by the fold model that held it out: the folds' held-out predictions
+    expect_equal(sum(yt$predicted), sum(vapply(m$rocs, function(r) sum(r$predictor), numeric(1))))
+    ## and those are not the in-sample predictions of the fold models
+    X <- as.data.frame(dat)[rows, c("CMDsm", "lightning", "Pice_mar", "youngAge")]
+    inSample <- tapply(rowMeans(sapply(m[paste0("Fold", 1:5)], function(mod) predict(mod, X))),
+                       raw$year[rows], sum)
+    expect_false(isTRUE(all.equal(as.numeric(inSample), yt$predicted)))
+  }
 })

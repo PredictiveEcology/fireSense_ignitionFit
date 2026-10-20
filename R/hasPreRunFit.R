@@ -120,6 +120,7 @@ useExistingFitIsCompatible <- function(sim) {
 buildModelCallees <- function() {
   list(runXGBOOST = runXGBOOST, cvFolds = cvFolds, stopIfFoldsLackPositives = stopIfFoldsLackPositives,
        xgbFeatureNames = xgbFeatureNames, rocPerFold = rocPerFold, aucPerFold = aucPerFold,
+       outOfFoldYearTotals = outOfFoldYearTotals,
        ignitionObjectiveTxt = fireSenseUtils::ignitionObjectiveTxt)
 }
 
