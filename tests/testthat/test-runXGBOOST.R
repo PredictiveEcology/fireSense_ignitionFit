@@ -181,3 +181,14 @@ test_that("yearTotals holds each year's observed total and its out-of-fold predi
     expect_false(isTRUE(all.equal(as.numeric(inSample), yt$predicted)))
   }
 })
+
+test_that("the xgboost fit gets its thread count from fireSenseUtils::nThreads()", {
+  withr::local_options(reproducible.useCache = FALSE) # train, do not read an earlier fit
+  dat <- scaleCovariates(makeIgnitionCovariates())
+  for (n in c(3L, 2L)) {
+    withr::local_options(fireSense.nThreads = n)
+    set.seed(42)
+    m <- fitQuietly(data.table::copy(dat), dig = "test", type = "ignition", nFolds = 5)
+    expect_identical(attr(m$Fold1, "params")$nthread, n)
+  }
+})
