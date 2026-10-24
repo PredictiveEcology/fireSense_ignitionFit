@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.2.0.9007"
-date: "Last updated: 2026-10-20"
+date: "Last updated: 2026-10-24"
 output:
   bookdown::html_document2:
     toc: true
@@ -117,6 +117,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <th style="text-align:left;"> min </th>
    <th style="text-align:left;"> max </th>
    <th style="text-align:left;"> paramDesc </th>
+   <th style="text-align:left;"> cacheKey </th>
   </tr>
  </thead>
 <tbody>
@@ -127,6 +128,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Has no effect on the fit: `runXGBOOST()` always uses k-fold cross validation. The first element is only used in the plot filename. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> rescaleVars </td>
@@ -135,6 +137,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> If `TRUE`, covariates are centred and scaled with `scale()` before fitting. The centring and scaling values are returned in the `scaleData` element of the outputs. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> whichProcessesToFit </td>
@@ -143,6 +146,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> which processes to fit: ignition, escape, or both (the default) </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> modelAlgorithm </td>
@@ -151,6 +155,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Model type. Only `xgboost` (any value containing 'xgb') works. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .plots </td>
@@ -159,6 +164,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> See `?Plots`. If set, plots the predicted response against each covariate, for climate and fuel covariates separately, and saves it as png in `figurePath(sim)`. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .runInitialTime </td>
@@ -167,6 +173,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> when to start this module? By default, the start time of the simulation. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .runInterval </td>
@@ -175,6 +182,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> optional. Interval between two runs of this module, expressed in units of simulation time. By default, NA, which means that this module only runs once per simulation. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .seed </td>
@@ -183,6 +191,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Named list of seeds to use for each event (names). E.g., `list('init' = 123)` will `set.seed(123)` at the start of the init event and unset it at the end. Defaults to `NULL`, meaning that no seeds will be set. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .studyAreaName </td>
@@ -191,6 +200,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Human-readable name for the study area used. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .useCache </td>
@@ -199,6 +209,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .neverCache </td>
@@ -207,6 +218,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Events that are never cached, whatever `.useCache` says (read by SpaDES.core, 3.2.1.9037 or later): `checkData` reads the ignition-fit ledger on Google Drive, which is not in the event's cache key, so a cached `checkData` would replay a stale answer to whether this polygon already has a fit. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> ignitionFitGoogleDriveFolder </td>
@@ -215,6 +227,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Google Drive folder url holding the shared ignition/escape fit ledger (`ignitionFitFilename`). `NULL` keeps the ledger purely local, in `inputPath(sim)`, with no Google Drive access at all (e.g. for tests). </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> fitFileSuffix </td>
@@ -223,6 +236,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Text put after the model tag in the ledger file names, e.g. `"_boundfix_rep81"`, so a test run writes and reads (`"latest"`) only its own files, never the production ones. `""` (the default) is the production ledger. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`; set it for all with `.globals = list(fitFileSuffix = ...)`; modules that disagree stop (`SpaDES.core::paramCheckOtherMods()`). Ignored when a file name is given. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> ignitionFitFilename </td>
@@ -231,6 +245,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> File name of the shared fit ledger: an `sf` object with one row per polygon, holding its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `"latest"` (the default) reads and writes the file named for this fit's fire years and model, `fireSenseUtils::ignitionFitFilenameFor()`, e.g. `fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> doFit </td>
@@ -239,6 +254,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Whether to fit this polygon. NA (default): do whatever is needed -- use the ledger's ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). FALSE: never fit -- use the ledger's fits, and stop with an error if it holds none for this polygon. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> refitExisting </td>
@@ -247,6 +263,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
 </tbody>
 </table>
