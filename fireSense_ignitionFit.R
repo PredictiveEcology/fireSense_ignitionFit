@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9112)",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9119)",
                   "ggplot2", "ggpubr", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -431,7 +431,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
         mPoisson <- xgboost(x = dat3ForxgboostNoIgn[wholeDataset], # should be whole set
                             y = dat3Forxgboost[, get(ignOrEscapeColName)][wholeDataset],
                             objective = fireSenseUtils::ignitionObjectiveTxt,
-                            nthread = 10,
+                            nthread = fireSenseUtils::nThreads(),
                             eval_set = valInd, # should be keepEval
                             monitor_training = TRUE,
                             verbosity = 0,
@@ -439,7 +439,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
                             max_depth = 2,
                             reg_lambda = 0.5,
                             learning_rate = 0.15
-        ) |> Cache(omitArgs = c("x", "y", "eval_set"),
+        ) |> Cache(omitArgs = c("x", "y", "eval_set", "nthread"),
                    .functionName = functionNameHelper("xgboost", type, kFold),
                    .cacheExtra = c(dig, digValInd, type),
                    cacheSaveFormat = "rds")
