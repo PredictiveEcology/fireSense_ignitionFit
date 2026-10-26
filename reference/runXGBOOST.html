@@ -90,7 +90,9 @@ are dropped.</p></dd>
     <div id="value">
     <h2>Value</h2>
     <p>List of the <code>nFolds</code> xgboost models, named <code>Fold1</code>, ..., plus <code>rocs</code> from <code><a href="rocPerFold.html">rocPerFold()</a></code> and
-<code>yearTotals</code> from <code><a href="outOfFoldYearTotals.html">outOfFoldYearTotals()</a></code>.</p>
+<code>yearTotals</code> from <code><a href="outOfFoldYearTotals.html">outOfFoldYearTotals()</a></code>: out of year, from extra models fitted on <code><a href="yearBlockedFolds.html">yearBlockedFolds()</a></code>
+(not returned), or out of fold from the <code><a href="cvFolds.html">cvFolds()</a></code> models with fewer than 2 years or when a year-blocked
+fold would train without a positive.</p>
     </div>
 
   </div>

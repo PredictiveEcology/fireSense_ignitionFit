@@ -17,6 +17,8 @@
 <url><loc>/reference/dataDigest.html</loc></url>
 <url><loc>/reference/doEvent.fireSense_ignitionFit.html</loc></url>
 <url><loc>/reference/dot-inputObjects.html</loc></url>
+<url><loc>/reference/fitFoldXgboost.html</loc></url>
+<url><loc>/reference/foldsLackPositives.html</loc></url>
 <url><loc>/reference/foreignObjectives.html</loc></url>
 <url><loc>/reference/frequencyFitRun.html</loc></url>
 <url><loc>/reference/functionNameHelper.html</loc></url>
@@ -39,5 +41,6 @@
 <url><loc>/reference/useExistingIgnitionFit.html</loc></url>
 <url><loc>/reference/writeIgnitionLedgerRow.html</loc></url>
 <url><loc>/reference/xgbFeatureNames.html</loc></url>
+<url><loc>/reference/yearBlockedFolds.html</loc></url>
 </urlset>
 
