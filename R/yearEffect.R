@@ -1,14 +1,15 @@
 #' Observed and out-of-fold predicted totals per year
 #'
 #' Each row is predicted by the one fold model that did not train on it (its fold's `keepEval`), so the
-#' predicted totals are out of fold. The folds are random rows (`cvFolds()`), so every year is still in
-#' every model's training rows: the totals are less optimistic than in-sample ones, not out of year.
-#' `fireSenseUtils::yearEffectSD()` of these is the fit's `yearSD`.
+#' predicted totals are out of fold. With random-row folds (`cvFolds()`) every year is still in every
+#' model's training rows, so the year totals track the observed ones too closely and understate the year
+#' effect. `runXGBOOST()` therefore gives this year-blocked folds (`yearBlockedFolds()`): the totals are
+#' out of year, and `fireSenseUtils::yearEffectSD()` of them is the fit's `yearSD`.
 #'
 #' @param year The year of each row (as fitted, so standardised when `rescaleVars`); `NULL` if the data
 #'   had no year column.
 #' @param observed The response of each row.
-#' @param folds Output of `cvFolds()`.
+#' @param folds Output of `cvFolds()` or `yearBlockedFolds()`.
 #' @param heldOutPreds List, one element per fold: the fold model's predictions on its `keepEval` rows.
 #' @return A `data.frame` with `year`, `observed` and `predicted`, one row per year, or `NULL` without `year`.
 outOfFoldYearTotals <- function(year, observed, folds, heldOutPreds) {

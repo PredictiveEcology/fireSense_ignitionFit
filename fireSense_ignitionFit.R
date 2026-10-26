@@ -381,7 +381,9 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 #' @param type `"ignition"` or `"escape"`; also the pattern that finds the response column.
 #' @param nFolds Number of folds.
 #' @return List of the `nFolds` xgboost models, named `Fold1`, ..., plus `rocs` from `rocPerFold()` and
-#'   `yearTotals` from `outOfFoldYearTotals()`.
+#'   `yearTotals` from `outOfFoldYearTotals()`: out of year, from extra models fitted on `yearBlockedFolds()`
+#'   (not returned), or out of fold from the `cvFolds()` models with fewer than 2 years or when a year-blocked
+#'   fold would train without a positive.
 runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   dat3Forxgboost <- dat
 
@@ -427,22 +429,10 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
         valInd <- valInd[[indexNames[[2]]]]
         digValInd <- .robustDigest(valInd) # should be eval set
 
-        # xgboost objects do not save with `qs` ... must be `rds`
-        mPoisson <- xgboost(x = dat3ForxgboostNoIgn[wholeDataset], # should be whole set
-                            y = dat3Forxgboost[, get(ignOrEscapeColName)][wholeDataset],
-                            objective = fireSenseUtils::ignitionObjectiveTxt,
-                            nthread = fireSenseUtils::nThreads(),
-                            eval_set = valInd, # should be keepEval
-                            monitor_training = TRUE,
-                            verbosity = 0,
-                            nrounds = 100,
-                            max_depth = 2,
-                            reg_lambda = 0.5,
-                            learning_rate = 0.15
-        ) |> Cache(omitArgs = c("x", "y", "eval_set", "nthread"),
-                   .functionName = functionNameHelper("xgboost", type, kFold),
-                   .cacheExtra = c(dig, digValInd, type),
-                   cacheSaveFormat = "rds")
+        mPoisson <- fitFoldXgboost(dat3ForxgboostNoIgn[wholeDataset], # should be whole set
+                                   dat3Forxgboost[, get(ignOrEscapeColName)][wholeDataset],
+                                   valInd, # should be keepEval
+                                   functionNameHelper("xgboost", type, kFold), c(dig, digValInd, type))
         # Predict probabilities
         valData <- dat3Forxgboost[valInd, ]
         pred2 <- predict(mPoisson, valData)
@@ -469,8 +459,20 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   rocs <- rocPerFold(mm, ignOrEscapeColName)
   aucs <- aucPerFold(rocs)
   print(meanRocMessage(aucs))
-  yearTotals <- outOfFoldYearTotals(yearOfRow, dat3Forxgboost[[ignOrEscapeColName]], trainIndexK,
+  response <- dat3Forxgboost[[ignOrEscapeColName]]
+  yearTotals <- outOfFoldYearTotals(yearOfRow, response, trainIndexK,
                                     lapply(mm, function(m) m$valData$predPoisson))
+  ## the yearSD comes from out-of-year totals: refit with whole years held out, when every fold can train
+  yearFolds <- yearBlockedFolds(yearOfRow, nFolds)
+  if (!is.null(yearFolds) && !any(foldsLackPositives(response, yearFolds))) {
+    heldOut <- Map(fold = yearFolds, kFold = seq_along(yearFolds), f = function(fold, kFold) {
+      m <- fitFoldXgboost(dat3ForxgboostNoIgn, response, fold$keepEval,
+                          functionNameHelper("xgboostYearBlocked", type, kFold),
+                          c(dig, .robustDigest(fold$keepEval), type))
+      predict(m, dat3Forxgboost[fold$keepEval, ])
+    })
+    yearTotals <- outOfFoldYearTotals(yearOfRow, response, yearFolds, heldOut)
+  }
   mm2 <- Map(m = mm, function(m) m$mod)
   mm2 <- append(mm2, list(rocs = rocs, yearTotals = yearTotals))
 
@@ -537,12 +539,68 @@ cvFolds <- function(response, nFolds) {
 #' @param type `"ignition"` or `"escape"`; used in the error message.
 #' @return `NULL`, invisibly. Stops if any fold would train without a positive.
 stopIfFoldsLackPositives <- function(response, folds, type) {
-  noPositive <- vapply(folds, function(f) !any(response[setdiff(f$keepAll, f$keepEval)] > 0), logical(1))
+  noPositive <- foldsLackPositives(response, folds)
   if (any(noPositive)) {
     stop("Too few ", type, "s to fit ", length(folds), " cross-validation folds: ",
          sum(response > 0), " positive observation(s), and ", sum(noPositive),
          " fold(s) would train without any.", call. = FALSE)
   }
+}
+
+#' Which folds would train without any positive observation
+#'
+#' @param response Numeric response.
+#' @param folds Output of `cvFolds()` or `yearBlockedFolds()`.
+#' @return Logical, one per fold.
+foldsLackPositives <- function(response, folds) {
+  vapply(folds, function(f) !any(response[setdiff(f$keepAll, f$keepEval)] > 0), logical(1))
+}
+
+#' Cross-validation folds of whole years
+#'
+#' Each fold holds out every row of its years, so a fold model's predictions for those years are out of
+#' year. Years go to folds at random (the caller sets the seed); with fewer years than `nFolds`, one fold
+#' per year.
+#'
+#' @param year The year of each row; `NULL` if the data had no year column.
+#' @param nFolds Number of folds.
+#' @return Like `cvFolds()`; `NULL` without `year` or with fewer than 2 years.
+yearBlockedFolds <- function(year, nFolds) {
+  years <- sort(unique(year))
+  if (length(years) < 2) return(NULL)
+  nFolds <- min(nFolds, length(years))
+  foldOfYear <- sample(rep_len(seq_len(nFolds), length(years)))
+  lapply(seq_len(nFolds), function(k)
+    list(keepAll = seq_along(year), keepEval = which(year %in% years[foldOfYear == k])))
+}
+
+#' Fit one fold's xgboost model
+#'
+#' Poisson objective (`fireSenseUtils::ignitionObjectiveTxt`), trained on the rows of `x` not in
+#' `evalSet`, which xgboost holds out for evaluation. Cached; xgboost objects do not save with `qs`,
+#' so `rds`.
+#'
+#' @param x Covariates (no response).
+#' @param y Response.
+#' @param evalSet Row indices held out of training.
+#' @param functionName `.functionName` for `Cache()`.
+#' @param cacheExtra `.cacheExtra` for `Cache()`: digests of the data and of `evalSet`, and the type.
+#' @return An xgboost model.
+fitFoldXgboost <- function(x, y, evalSet, functionName, cacheExtra) {
+  xgboost(x = x, y = y,
+          objective = fireSenseUtils::ignitionObjectiveTxt,
+          nthread = fireSenseUtils::nThreads(),
+          eval_set = evalSet,
+          monitor_training = TRUE,
+          verbosity = 0,
+          nrounds = 100,
+          max_depth = 2,
+          reg_lambda = 0.5,
+          learning_rate = 0.15
+  ) |> Cache(omitArgs = c("x", "y", "eval_set", "nthread"),
+             .functionName = functionName,
+             .cacheExtra = cacheExtra,
+             cacheSaveFormat = "rds")
 }
 
 #' Message reporting the mean AUC across folds

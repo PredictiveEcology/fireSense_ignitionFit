@@ -160,7 +160,7 @@ test_that("with few ignitions the models still predict about the observed total"
   expect_equal(sum(predTotal) / sum(dat$ignitions), 1, tolerance = 0.1)
 })
 
-test_that("yearTotals holds each year's observed total and its out-of-fold predicted total", {
+test_that("yearTotals holds each year's observed total and its out-of-year predicted total", {
   fitCache()
   raw <- makeIgnitionCovariates(escapes = TRUE)
   dat <- scaleCovariates(raw)
@@ -172,8 +172,9 @@ test_that("yearTotals holds each year's observed total and its out-of-fold predi
     ## one row per year, in the year column as fitted (standardised here)
     expect_identical(nrow(yt), 4L)
     expect_equal(yt$observed, as.numeric(tapply(resp[rows], raw$year[rows], sum)), ignore_attr = TRUE)
-    ## every row is predicted once, by the fold model that held it out: the folds' held-out predictions
-    expect_equal(sum(yt$predicted), sum(vapply(m$rocs, function(r) sum(r$predictor), numeric(1))))
+    ## every row is predicted by a model that held out its whole year, not by the random-row fold models
+    expect_true(all(is.finite(yt$predicted)))
+    expect_false(isTRUE(all.equal(sum(yt$predicted), sum(vapply(m$rocs, function(r) sum(r$predictor), numeric(1))))))
     ## and those are not the in-sample predictions of the fold models
     X <- as.data.frame(dat)[rows, c("CMDsm", "lightning", "Pice_mar", "youngAge")]
     inSample <- tapply(rowMeans(sapply(m[paste0("Fold", 1:5)], function(mod) predict(mod, X))),
@@ -191,4 +192,14 @@ test_that("the xgboost fit gets its thread count from fireSenseUtils::nThreads()
     m <- fitQuietly(data.table::copy(dat), dig = "test", type = "ignition", nFolds = 5)
     expect_identical(attr(m$Fold1, "params")$nthread, n)
   }
+})
+
+test_that("with one year, yearTotals are the random-row folds' held-out predictions", {
+  fitCache()
+  raw <- makeIgnitionCovariates()
+  raw$year <- raw$year[1]
+  dat <- scaleCovariates(raw)
+  m <- fitQuietly(data.table::copy(dat), dig = "oneYear", type = "ignition", nFolds = 5)
+  expect_identical(nrow(m$yearTotals), 1L)
+  expect_equal(m$yearTotals$predicted, sum(vapply(m$rocs, function(r) sum(r$predictor), numeric(1))))
 })

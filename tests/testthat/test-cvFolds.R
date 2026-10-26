@@ -55,3 +55,26 @@ test_that("a fold that would train without any positive stops the fit with a cle
                                           list(list(keepAll = 1:4, keepEval = 3:4)), "escape"),
                "Too few escapes")
 })
+
+test_that("yearBlockedFolds holds out whole years, every row once", {
+  year <- rep(c(2001, 2002, 2003, 2004, 2005, 2006, 2007), times = 3:9)
+  set.seed(1)
+  f <- yearBlockedFolds(year, 5)
+  expect_length(f, 5)
+  held <- unlist(lapply(f, `[[`, "keepEval"))
+  expect_setequal(held, seq_along(year))
+  expect_false(anyDuplicated(held) > 0)
+  ## no year is split between folds
+  expect_true(all(tapply(rep(seq_along(f), lengths(lapply(f, `[[`, "keepEval"))), year[held],
+                         function(k) length(unique(k))) == 1))
+  expect_identical(f[[1]]$keepAll, seq_along(year))
+  ## fewer years than folds: one fold per year; one year: none
+  expect_length(yearBlockedFolds(c(1, 1, 2, 2, 3), 5), 3)
+  expect_null(yearBlockedFolds(rep(2001, 4), 5))
+  expect_null(yearBlockedFolds(NULL, 5))
+})
+
+test_that("foldsLackPositives flags a fold whose training rows hold no positive", {
+  folds <- list(list(keepAll = 1:4, keepEval = 1:2), list(keepAll = 1:4, keepEval = 3:4))
+  expect_identical(foldsLackPositives(c(0, 0, 1, 0), folds), c(FALSE, TRUE))
+})
