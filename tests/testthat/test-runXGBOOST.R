@@ -203,3 +203,19 @@ test_that("with one year, yearTotals are the random-row folds' held-out predicti
   expect_identical(nrow(m$yearTotals), 1L)
   expect_equal(m$yearTotals$predicted, sum(vapply(m$rocs, function(r) sum(r$predictor), numeric(1))))
 })
+
+test_that("the per-fold results do not hold the SHAP tables, which are as long as the data times the features", {
+  fitCache()
+  dat <- scaleCovariates(makeIgnitionCovariates())
+  perFold <- NULL
+  realRoc <- rocPerFold
+  testthat::local_mocked_bindings(rocPerFold = function(mm, ...) {
+    perFold <<- mm
+    realRoc(mm, ...)
+  })
+  set.seed(42)
+  fitQuietly(data.table::copy(dat), dig = "test", type = "ignition", nFolds = 5)
+
+  expect_length(perFold, 5)
+  for (fold in perFold) expect_setequal(names(fold), c("valData", "mod"))
+})

@@ -453,7 +453,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
           Cache(omitArgs = formalArgs(shap.prep),
                 .functionName = functionNameHelper("shap.prep", type, kFold),
                 .cacheExtra = c(dig, digValInd, type))
-        list(valData = valData, mod = mPoisson, shap_long = shap_long)
+        list(valData = valData, mod = mPoisson) # not shap_long: nFolds long tables exhausted memory
       })
   )
   rocs <- rocPerFold(mm, ignOrEscapeColName)
