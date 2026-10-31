@@ -1,5 +1,7 @@
 # fireSense_ignitionFit (development version)
 
+- The default `.useCache` is `TRUE` (was `FALSE`): every event and `.inputObjects` is cached except those in `.neverCache` (`checkData`), so `init` and `run` are cached. A project that set `fireSense_ignitionFit = list(.useCache = TRUE)` caches the same events as before and can drop it; a project that set no `.useCache` now caches `init`, `run` and `.inputObjects`. The parameter's type is `logical` or `character`.
+
 - Fixed: `runXGBOOST()` no longer keeps each fold's SHAP long table (`shap_long`, one row per data row per feature) in the fold results, which nothing read; all folds' tables were held until the loop ended, and an ELF fit was killed for memory (RSS 54 GB at fold 2, 86 GB at fold 5). The SHAP calculations and their cache keys are unchanged.
 * The year effect's sd (`yearSD`) now comes from out-of-year predictions. It was estimated from yearly totals of random-row cross-validation folds, which keep every year in training, so the totals tracked the observed ones too closely: held-out-year estimates were larger in all 12 tested ELFs (median 0.62 vs 0.51). `runXGBOOST()` fits extra models on whole-year folds (new `yearBlockedFolds()`, cached, not returned) for `yearTotals`; the fold models and their ROC curves are unchanged. With fewer than 2 years, or when a year-blocked fold would train without a positive, the random-fold totals are kept. The fit's cache key changes: ignition and escape fits rerun.
 
