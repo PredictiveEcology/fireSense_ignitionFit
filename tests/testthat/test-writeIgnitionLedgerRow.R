@@ -7,8 +7,11 @@
 studyAreaToy <- function() terra::vect(terra::ext(0, 2500, 0, 2500), crs = "EPSG:3005")
 
 ## Like runModule() in test-events.R, but paths are supplied (not a fresh tempdir each call), so
-## a ledger file written by one call can be read back by the next.
+## a ledger file written by one call can be read back by the next. Event caching is off (the module's
+## default is on): a second call on the same cachePath would replay the first call's `run` instead of
+## reading the ledger, which is what these tests check.
 runIgnitionModule <- function(paths, params = list(), objects = list(), end = 1, msgs = new.env()) {
+  params <- c(list(.useCache = FALSE), params)
   defaults <- list(
     fireSense_ignitionCovariates = makeIgnitionCovariates(),
     fireSense_escapeCovariates   = makeIgnitionCovariates(escapes = TRUE),

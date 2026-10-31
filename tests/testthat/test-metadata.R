@@ -48,11 +48,11 @@ test_that("parameters are the expected names", {
 test_that("parameters have the expected classes and defaults", {
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   p <- md$parameters
-  classes <- stats::setNames(unlist(p$paramClass), p$paramName)
+  classes <- stats::setNames(vapply(p$paramClass, paste, character(1), collapse = "|"), p$paramName)
   expect_identical(
     classes[order(names(classes))],
     c(.neverCache = "character", .plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
-      .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
+      .seed = "list", .studyAreaName = "character", .useCache = "logical|character", crossValType = "character",
       doFit = "logical", fitFileSuffix = "character", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
       modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
       whichProcessesToFit = "character")
@@ -64,7 +64,7 @@ test_that("parameters have the expected classes and defaults", {
   expect_identical(default("modelAlgorithm"), "xgboost")
   expect_identical(default("rescaleVars"), TRUE)
   expect_identical(default(".plots"), "screen")
-  expect_identical(default(".useCache"), FALSE)
+  expect_identical(default(".useCache"), TRUE)           # every event but those in .neverCache
   expect_null(default(".seed"))
   expect_true(is.na(default(".runInterval")))
   expect_identical(default("ignitionFitFilename"), "latest")
