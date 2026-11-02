@@ -219,9 +219,13 @@ frequencyFitRun <- function(sim) {
   doFit <- fireSenseUtils::resolveDoFit(P(sim)$doFit, P(sim)$refitExisting,
                                         module = "fireSense_ignitionFit", message = TRUE)
   if (!fireSenseUtils::mustFit(doFit, hasPreRunIgnitionFitForThisPolygon(sim) && useExistingFitIsCompatible(sim),
-                               sim$.ELFind, fitFileSuffix = P(sim)$fitFileSuffix)) {
+                               paste(sim$.ELFind, collapse = ", "), fitFileSuffix = P(sim)$fitFileSuffix)) {
     return(invisible(useExistingIgnitionFit(sim)))
   }
+  if (length(sim$.ELFind) > 1L)
+    stop("fireSense_ignitionFit: a fit is of one ELF, but this run covers several (", paste(sim$.ELFind, collapse = ", "),
+         "). Fit each on its own (`.ELFind`), or predict from their stored fits (`doFit = FALSE`, the default).",
+         call. = FALSE)
 
   #TODO: make cache smart by digest args in advance
   whichProcessesToFit <- P(sim)$whichProcessesToFit

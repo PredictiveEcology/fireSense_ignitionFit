@@ -4,16 +4,17 @@
 #' this polygon's fit, or nothing at all. Its class therefore says nothing about *this* polygon.
 #' Parallel to fireSense_SpreadFit's `hasPreRunFitForThisPolygon()`.
 #'
-#' @param sim A `simList`. Uses `sim$.ELFind` as the polygon identity (the ledger key).
+#' @param sim A `simList`. Uses `sim$.ELFind` as the polygon identity (the ledger key). Over several
+#'   ELFs (a `studyAreaLarge`, see `fireSense_ELFs`) it names them all, and each must have a row.
 #' @return Logical, length one. Always `FALSE` when `sim$studyArea` was not supplied (no
 #'   `sim$ignitionFitPreRun` was read).
 hasPreRunIgnitionFitForThisPolygon <- function(sim) {
   sa <- sim$ignitionFitPreRun
   if (!(is(sa, "sf") || is(sa, "data.frame")) || NROW(sa) == 0L) return(FALSE)
   if (!"polygonID" %in% names(sa)) return(FALSE)
-  id <- sim$.ELFind
-  if (is.null(id) || !length(id)) return(FALSE)
-  isTRUE(any(as.character(sa$polygonID) == as.character(id[1])))
+  id <- as.character(sim$.ELFind)
+  if (!length(id) || anyNA(id)) return(FALSE)
+  all(id %in% as.character(sa$polygonID))
 }
 
 #' Take this polygon's ignition and escape fits from the ledger instead of fitting
@@ -25,7 +26,7 @@ hasPreRunIgnitionFitForThisPolygon <- function(sim) {
 useExistingIgnitionFit <- function(sim) {
   row <- ledgerRowForThisPolygon(sim)
   message("fireSense_ignitionFit: ledger already holds ignition/escape fits for polygon ",
-          sim$.ELFind, "; using those instead of fitting.")
+          paste(sim$.ELFind, collapse = ", "), "; using those instead of fitting.")
   sim$fireSense_IgnitionFitted <- row[[fireSenseUtils::ignitionFitAdditionalColNamesTxt[1]]][[1]]
   sim$fireSense_EscapeFitted <- row[[fireSenseUtils::ignitionFitAdditionalColNamesTxt[2]]][[1]]
   invisible(sim)
@@ -36,8 +37,10 @@ useExistingIgnitionFit <- function(sim) {
 #' @param sim A `simList` for which [hasPreRunIgnitionFitForThisPolygon()] is `TRUE`.
 #' @return The one row of `sim$ignitionFitPreRun` whose `polygonID` is `sim$.ELFind`.
 ledgerRowForThisPolygon <- function(sim) {
+  ## over several ELFs, the first one's: fireSense_ignitionPredict then uses each ELF's own fit, from
+  ## fireSense_ELFs' fireSense_IgnitionFittedList
   sim$ignitionFitPreRun[which(as.character(sim$ignitionFitPreRun$polygonID) ==
-                                as.character(sim$.ELFind))[1], ]
+                                as.character(sim$.ELFind)[1])[1], ]
 }
 
 #' Names of the features `runXGBOOST()` gives the model
@@ -105,7 +108,7 @@ useExistingFitIsCompatible <- function(sim) {
     col <- fireSenseUtils::ignitionFitAdditionalColNamesTxt[match(igOrEsc, c("ignition", "escape"))]
     storedFitIsCompatible(row[[col]][[1]],
                           sim[[igOrEscNames(igOrEsc, post = "Covariates")]],
-                          polygonID = sim$.ELFind, type = igOrEsc)
+                          polygonID = paste(sim$.ELFind, collapse = ", "), type = igOrEsc)
   }, logical(1))
   all(ok)
 }

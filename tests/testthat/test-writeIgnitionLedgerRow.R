@@ -322,3 +322,30 @@ test_that("buildModel's cache key changes when the body of a function it calls c
   edited$ignitionObjectiveTxt <- "reg:tweedie"
   expect_false(identical(key(base), key(edited)))
 })
+
+## A run over several ELFs (fireSense_ELFs makes `.ELFind` the ELFs a studyAreaLarge covers): each needs
+## its stored fit; a fit is of one ELF.
+test_that("hasPreRunIgnitionFitForThisPolygon(): every ELF of .ELFind needs its row", {
+  rows <- data.frame(polygonID = c("6.1.1", "6.1.2"))
+  has <- function(id, r = rows) hasPreRunIgnitionFitForThisPolygon(list(ignitionFitPreRun = r, .ELFind = id))
+  expect_true(has("6.1.1"))
+  expect_true(has(c("6.1.2", "6.1.1")))
+  expect_false(has(c("6.1.1", "6.1.3")))
+  expect_false(has(NA_character_, data.frame(polygonID = NA)))
+  expect_false(has(character(0)))
+})
+
+test_that("over several ELFs the default doFit uses their stored fits; a fit of several stops", {
+  paths <- localLedgerPaths()
+  commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
+  next_to <- terra::vect(terra::ext(2500, 5000, 0, 2500), crs = "EPSG:3005")
+  runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
+  runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.2", studyArea = next_to))
+  both <- terra::vect(terra::ext(0, 5000, 0, 2500), crs = "EPSG:3005")
+  objs <- list(.ELFind = c("6.1.1", "6.1.2"), studyArea = both)
+  msgs <- new.env()
+  sim <- runIgnitionModule(paths, params = c(commonParams, list(doFit = NULL)), objects = objs, msgs = msgs)
+  expect_length(grep("using those instead of fitting", msgs$text), 1L)
+  expect_error(runIgnitionModule(paths, params = c(commonParams, list(doFit = TRUE)), objects = objs),
+               "a fit is of one ELF.*6\\.1\\.1, 6\\.1\\.2")
+})
