@@ -1,5 +1,7 @@
 # fireSense_ignitionFit (development version)
 
+* Over several ELFs (`.ELFind` of a `studyAreaLarge`), `doFit` needs a stored fit for each, does not compare the run's pooled covariates with one ELF's stored model, and a fit of several stops before it starts.
+
 * `doFit` defaults to FALSE (was NA): a run never fits unless asked. With no ledger row for the ELF (under `fitFileSuffix`), the `run` event stops before any xgboost fit, with an error naming the ELF and the ledger suffix and saying how to fit (`doFit = NA`: fit when there is no stored fit; `TRUE`: always fit). A user who adds fireSense to a project only to predict can no longer start a fit by accident. The deprecated `refitExisting = TRUE` still forces a fit: it overrides the default `doFit = FALSE` (needs fireSenseUtils with the matching `resolveDoFit()`).
 
 - Fixed: `runXGBOOST()` no longer keeps each fold's SHAP long table (`shap_long`, one row per data row per feature) in the fold results, which nothing read; all folds' tables were held until the loop ended, and an ELF fit was killed for memory (RSS 54 GB at fold 2, 86 GB at fold 5). The SHAP calculations and their cache keys are unchanged.
