@@ -68,7 +68,7 @@ test_that("parameters have the expected classes and defaults", {
   expect_null(default(".seed"))
   expect_true(is.na(default(".runInterval")))
   expect_identical(default("ignitionFitFilename"), "latest")
-  expect_identical(default("doFit"), NA)                 # fit only when the ledger has no fit
+  expect_identical(default("doFit"), FALSE)              # never fit: use the ledger's fit, stop if there is none
   expect_identical(default("refitExisting"), NA)         # deprecated alias: unset
   expect_identical(default("ignitionFitGoogleDriveFolder"),
                    fireSenseUtils::ignitionFitLedgerFolder())

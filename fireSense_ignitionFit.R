@@ -79,14 +79,16 @@ defineModule(sim, list(
                                   "default) reads and writes the file named for this fit's fire years and model,",
                                   "`fireSenseUtils::ignitionFitFilenameFor()`, e.g.",
                                   "`fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`.")),
-    defineParameter("doFit", "logical", NA, NA, NA,
-                    paste("Whether to fit this polygon. NA (default): do whatever is needed -- use the ledger's",
-                          "ignition and escape fits if it holds them for this polygon (and they fit the current",
-                          "covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS",
-                          "ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). FALSE: never",
-                          "fit -- use the ledger's fits, and stop with an error if it holds none for this polygon.")),
+    defineParameter("doFit", "logical", FALSE, NA, NA,
+                    paste("Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and",
+                          "stop with an error if it holds none for this polygon (`fitFileSuffix` picks the ledger), so",
+                          "a run that only predicts can never start a fit by accident. NA: do whatever is needed --",
+                          "use the ledger's ignition and escape fits if it holds them for this polygon (and they fit",
+                          "the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR",
+                          "DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale).")),
     defineParameter("refitExisting", "logical", NA, NA, NA,
-                    paste("DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing."))
+                    paste("DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing.",
+                          "Overrides `doFit = FALSE` (the default), not `doFit = NA` or TRUE."))
   ),
   inputObjects = bindrows(
     expectsInput(".ELFind", "character",
@@ -217,7 +219,7 @@ frequencyFitRun <- function(sim) {
   doFit <- fireSenseUtils::resolveDoFit(P(sim)$doFit, P(sim)$refitExisting,
                                         module = "fireSense_ignitionFit", message = TRUE)
   if (!fireSenseUtils::mustFit(doFit, hasPreRunIgnitionFitForThisPolygon(sim) && useExistingFitIsCompatible(sim),
-                               sim$.ELFind)) {
+                               sim$.ELFind, fitFileSuffix = P(sim)$fitFileSuffix)) {
     return(invisible(useExistingIgnitionFit(sim)))
   }
 
