@@ -102,6 +102,10 @@ storedFitIsCompatible <- function(fitted, covariates, polygonID = "", type = "ig
 #' @param sim A `simList` for which [hasPreRunIgnitionFitForThisPolygon()] is `TRUE`.
 #' @return Logical, length one: `storedFitIsCompatible()` for each of `P(sim)$whichProcessesToFit`.
 useExistingFitIsCompatible <- function(sim) {
+  ## Over several ELFs (a studyAreaLarge) this run's covariates pool them, while each stored model predicts
+  ## on its own ELF's covariates (fireSense_dataPrepPredict): there is nothing to compare, and no fit of
+  ## several ELFs to fall back on. The first ELF's model was compared, and a predict-only run stopped.
+  if (length(sim$.ELFind) > 1L) return(TRUE)
   row <- ledgerRowForThisPolygon(sim)
   procs <- P(sim)$whichProcessesToFit
   ok <- vapply(procs, function(igOrEsc) {

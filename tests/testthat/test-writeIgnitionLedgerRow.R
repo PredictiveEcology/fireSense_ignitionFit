@@ -346,6 +346,13 @@ test_that("over several ELFs the default doFit uses their stored fits; a fit of 
   msgs <- new.env()
   sim <- runIgnitionModule(paths, params = c(commonParams, list(doFit = NULL)), objects = objs, msgs = msgs)
   expect_length(grep("using those instead of fitting", msgs$text), 1L)
+  ## the pooled covariates of several ELFs are not compared with one ELF's stored model
+  dropLightning <- function(d) data.table::set(d, j = "lightning", value = NULL)
+  noLightning <- c(objs, list(fireSense_ignitionCovariates = dropLightning(makeIgnitionCovariates()),
+                              fireSense_escapeCovariates = dropLightning(makeIgnitionCovariates(escapes = TRUE))))
+  msgs <- new.env()
+  runIgnitionModule(paths, params = c(commonParams, list(doFit = NULL)), objects = noLightning, msgs = msgs)
+  expect_length(grep("using those instead of fitting", msgs$text), 1L)
   expect_error(runIgnitionModule(paths, params = c(commonParams, list(doFit = TRUE)), objects = objs),
                "a fit is of one ELF.*6\\.1\\.1, 6\\.1\\.2")
 })
