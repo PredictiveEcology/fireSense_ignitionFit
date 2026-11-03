@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.2.0.9010"
-date: "Last updated: 2026-10-29"
+date: "Last updated: 2026-11-03"
 output:
   bookdown::html_document2:
     toc: true
@@ -237,7 +237,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;">  </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Text put after the model tag in the ledger file names, e.g. `"_boundfix_rep81"`, so a test run writes and reads (`"latest"`) only its own files, never the production ones. `""` (the default) is the production ledger. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`; set it for all with `.globals = list(fitFileSuffix = ...)`; modules that disagree stop (`SpaDES.core::paramCheckOtherMods()`). Ignored when a file name is given. </td>
+   <td style="text-align:left;"> Text put after the model tag in the ledger file names, e.g. `"_boundfix_rep81"`, so a test run writes and reads (`"latest"`) only its own files, never the production ones. `""` (the default) writes the unsuffixed file and reads (`"latest"`) every file of the model tag, newest by the date in its suffix (`fireSenseUtils::ledgerFileOrder()`); experiment fits belong in `spreadFitLedgerFolder(testing = TRUE)`. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`; set it for all with `.globals = list(fitFileSuffix = ...)`; modules that disagree stop (`SpaDES.core::paramCheckOtherMods()`). Ignored when a file name is given. </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
@@ -252,10 +252,10 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
   <tr>
    <td style="text-align:left;"> doFit </td>
    <td style="text-align:left;"> logical </td>
+   <td style="text-align:left;"> FALSE </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Whether to fit this polygon. NA (default): do whatever is needed -- use the ledger's ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). FALSE: never fit -- use the ledger's fits, and stop with an error if it holds none for this polygon. </td>
+   <td style="text-align:left;"> Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and stop with an error if it holds none for this polygon (`fitFileSuffix` picks the ledger), so a run that only predicts can never start a fit by accident. NA: do whatever is needed -- use the ledger's ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
@@ -264,7 +264,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing. </td>
+   <td style="text-align:left;"> DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing. Overrides `doFit = FALSE` (the default), not `doFit = NA` or TRUE. </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
 </tbody>

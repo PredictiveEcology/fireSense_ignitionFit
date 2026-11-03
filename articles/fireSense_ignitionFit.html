@@ -73,7 +73,7 @@
       <h1 data-toc-skip>fireSense_ignitionFit Manual</h1>
             <h3 data-toc-skip class="subtitle">v.1.2.0.9010</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-10-29</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-11-03</h4>
       
 
       <div class="hidden name"><code>fireSense_ignitionFit.Rmd</code></div>
@@ -533,7 +533,7 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-Text put after the model tag in the ledger file names, e.g. <code>"_boundfix_rep81"</code>, so a test run writes and reads (<code>"latest"</code>) only its own files, never the production ones. <code>""</code> (the default) is the production ledger. The same parameter of <code>fireSense_spreadFit</code>, <code>fireSense_dataPrepFit</code> and <code>fireSense_ELFs</code>; set it for all with <code>.globals = list(fitFileSuffix = ...)</code>; modules that disagree stop (<code><a href="https://spades-core.predictiveecology.org/reference/paramCheckOtherMods.html" class="external-link">SpaDES.core::paramCheckOtherMods()</a></code>). Ignored when a file name is given.
+Text put after the model tag in the ledger file names, e.g. <code>"_boundfix_rep81"</code>, so a test run writes and reads (<code>"latest"</code>) only its own files, never the production ones. <code>""</code> (the default) writes the unsuffixed file and reads (<code>"latest"</code>) every file of the model tag, newest by the date in its suffix (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/ledgerFileOrder.html" class="external-link">fireSenseUtils::ledgerFileOrder()</a></code>); experiment fits belong in <code>spreadFitLedgerFolder(testing = TRUE)</code>. The same parameter of <code>fireSense_spreadFit</code>, <code>fireSense_dataPrepFit</code> and <code>fireSense_ELFs</code>; set it for all with <code>.globals = list(fitFileSuffix = ...)</code>; modules that disagree stop (<code><a href="https://spades-core.predictiveecology.org/reference/paramCheckOtherMods.html" class="external-link">SpaDES.core::paramCheckOtherMods()</a></code>). Ignored when a file name is given.
 </td>
 <td style="text-align:left;">
 TRUE
@@ -570,7 +570,7 @@ doFit
 logical
 </td>
 <td style="text-align:left;">
-NA
+FALSE
 </td>
 <td style="text-align:left;">
 NA
@@ -579,7 +579,7 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-Whether to fit this polygon. NA (default): do whatever is needed – use the ledger’s ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit’s INPUTS have changed, so the stored row is stale). FALSE: never fit – use the ledger’s fits, and stop with an error if it holds none for this polygon.
+Whether to fit this polygon. FALSE (default): never fit – use the ledger’s fits, and stop with an error if it holds none for this polygon (<code>fitFileSuffix</code> picks the ledger), so a run that only predicts can never start a fit by accident. NA: do whatever is needed – use the ledger’s ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit’s INPUTS have changed, so the stored row is stale).
 </td>
 <td style="text-align:left;">
 TRUE
@@ -602,7 +602,7 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-DEPRECATED, use <code>doFit</code>. TRUE is <code>doFit = TRUE</code>; NA (unset) and FALSE do nothing.
+DEPRECATED, use <code>doFit</code>. TRUE is <code>doFit = TRUE</code>; NA (unset) and FALSE do nothing. Overrides <code>doFit = FALSE</code> (the default), not <code>doFit = NA</code> or TRUE.
 </td>
 <td style="text-align:left;">
 TRUE
