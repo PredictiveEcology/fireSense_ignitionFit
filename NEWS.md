@@ -1,5 +1,9 @@
 # fireSense_ignitionFit (development version)
 
+* Over several ELFs (`.ELFind` of a `studyAreaLarge`), `doFit` needs a stored fit for each, does not compare the run's pooled covariates with one ELF's stored model, and a fit of several stops before it starts.
+
+* `doFit` defaults to FALSE (was NA): a run never fits unless asked. With no ledger row for the ELF (under `fitFileSuffix`), the `run` event stops before any xgboost fit, with an error naming the ELF and the ledger suffix and saying how to fit (`doFit = NA`: fit when there is no stored fit; `TRUE`: always fit). A user who adds fireSense to a project only to predict can no longer start a fit by accident. The deprecated `refitExisting = TRUE` still forces a fit: it overrides the default `doFit = FALSE` (needs fireSenseUtils with the matching `resolveDoFit()`).
+
 - Fixed: `runXGBOOST()` no longer keeps each fold's SHAP long table (`shap_long`, one row per data row per feature) in the fold results, which nothing read; all folds' tables were held until the loop ended, and an ELF fit was killed for memory (RSS 54 GB at fold 2, 86 GB at fold 5). The SHAP calculations and their cache keys are unchanged.
 * The year effect's sd (`yearSD`) now comes from out-of-year predictions. It was estimated from yearly totals of random-row cross-validation folds, which keep every year in training, so the totals tracked the observed ones too closely: held-out-year estimates were larger in all 12 tested ELFs (median 0.62 vs 0.51). `runXGBOOST()` fits extra models on whole-year folds (new `yearBlockedFolds()`, cached, not returned) for `yearTotals`; the fold models and their ROC curves are unchanged. With fewer than 2 years, or when a year-blocked fold would train without a positive, the random-fold totals are kept. The fit's cache key changes: ignition and escape fits rerun.
 

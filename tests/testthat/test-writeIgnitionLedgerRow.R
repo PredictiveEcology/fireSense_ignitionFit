@@ -21,7 +21,7 @@ runIgnitionModule <- function(paths, params = list(), objects = list(), end = 1,
   utils::capture.output(suppressWarnings(withCallingHandlers({
     sim <- SpaDES.core::simInit(times = list(start = 1, end = end), modules = moduleName,
                                 paths = paths, objects = objects,
-                                params = stats::setNames(list(params), moduleName))
+                                params = stats::setNames(list(testParams(params)), moduleName))
     sim <- SpaDES.core::spades(sim)
   }, message = function(m) { msgs$text <- c(msgs$text, conditionMessage(m)); invokeRestart("muffleMessage") })))
   sim
@@ -159,17 +159,19 @@ fitsInRun <- function(paths, params, ledger) {
        error = if (failed) as.character(out) else NULL, msgs = msgs$text)
 }
 
-test_that("doFit NA (the default), TRUE and FALSE, with and without a ledger fit", {
+test_that("doFit FALSE (the default), NA and TRUE, with and without a ledger fit", {
   paths <- localLedgerPaths()
   ## no ledger fit
-  expect_gt(fitsInRun(localLedgerPaths(), list(), ledger = FALSE)$fits, 0L)               # default: fit
-  expect_gt(fitsInRun(localLedgerPaths(), list(doFit = NA), ledger = FALSE)$fits, 0L)
+  r <- fitsInRun(localLedgerPaths(), list(doFit = NULL), ledger = FALSE)                  # default: error
+  expect_identical(r$fits, 0L)
+  expect_match(r$error, "polygon 6\\.1\\.1 in the ledger with fitFileSuffix \"\".*the default.*doFit = NA")
+  expect_gt(fitsInRun(localLedgerPaths(), list(doFit = NA), ledger = FALSE)$fits, 0L)     # fit
   expect_gt(fitsInRun(localLedgerPaths(), list(doFit = TRUE), ledger = FALSE)$fits, 0L)
   r <- fitsInRun(localLedgerPaths(), list(doFit = FALSE), ledger = FALSE)                  # never fit: error
   expect_identical(r$fits, 0L)
   expect_match(r$error, "polygon 6\\.1\\.1.*doFit")
   ## a ledger fit
-  expect_identical(fitsInRun(localLedgerPaths(), list(), ledger = TRUE)$fits, 0L)          # default: reuse
+  expect_identical(fitsInRun(localLedgerPaths(), list(doFit = NULL), ledger = TRUE)$fits, 0L)  # default: reuse
   expect_identical(fitsInRun(localLedgerPaths(), list(doFit = NA), ledger = TRUE)$fits, 0L)
   expect_identical(fitsInRun(localLedgerPaths(), list(doFit = FALSE), ledger = TRUE)$fits, 0L)
   expect_gt(fitsInRun(localLedgerPaths(), list(doFit = TRUE), ledger = TRUE)$fits, 0L)    # replace it
@@ -181,10 +183,28 @@ test_that("refitExisting is a deprecated alias of doFit = TRUE, with a message n
   expect_length(grep("refitExisting.*deprecated.*doFit", r$msgs), 1L)
   ## FALSE is the old default: it does nothing, and says nothing about doFit = TRUE
   expect_identical(fitsInRun(localLedgerPaths(), list(refitExisting = FALSE), ledger = TRUE)$fits, 0L)
-  ## an explicit doFit is not overridden by the alias
-  expect_identical(fitsInRun(localLedgerPaths(), list(doFit = FALSE, refitExisting = TRUE), ledger = TRUE)$fits, 0L)
+  ## doFit FALSE, the default, yields to the alias (it cannot be told apart from an unset doFit); NA does not
+  expect_gt(fitsInRun(localLedgerPaths(), list(doFit = NULL, refitExisting = TRUE), ledger = TRUE)$fits, 0L)
+  expect_identical(fitsInRun(localLedgerPaths(), list(doFit = NA, refitExisting = FALSE), ledger = TRUE)$fits, 0L)
   ## no deprecated parameter set: no deprecation message
   expect_length(grep("deprecated", fitsInRun(localLedgerPaths(), list(doFit = NA), ledger = TRUE)$msgs), 0L)
+})
+
+test_that("the default doFit never fits: no ledger row stops the run before any xgboost fit", {
+  ## a user who adds fireSense only to predict must never start a fit by accident.
+  ## Each fold's xgboost fit is cached (fitFoldXgboost(), function name "xgboost_<type>_<fold>"), so the
+  ## run's cache shows whether any fit ran; with doFit = NA the same count is positive.
+  xgboostFits <- function(params) {
+    paths <- localLedgerPaths()
+    r <- fitsInRun(paths, params, ledger = FALSE)
+    sc <- reproducible::showCache(paths$cachePath, verbose = -2)
+    r$xgboost <- length(unique(sc$cacheId[grepl("^xgboost", sc$tagValue)]))
+    r
+  }
+  r <- xgboostFits(list(doFit = NULL))                     # the module's default
+  expect_match(r$error, "no usable stored fit for polygon 6\\.1\\.1.*the default")
+  expect_identical(r$xgboost, 0L)
+  expect_gt(xgboostFits(list(doFit = NA))$xgboost, 0L)
 })
 
 test_that("writeIgnitionLedgerRow stops on an invalid .ELFind, as fireSense_SpreadFit does", {
@@ -301,4 +321,38 @@ test_that("buildModel's cache key changes when the body of a function it calls c
   edited <- base
   edited$ignitionObjectiveTxt <- "reg:tweedie"
   expect_false(identical(key(base), key(edited)))
+})
+
+## A run over several ELFs (fireSense_ELFs makes `.ELFind` the ELFs a studyAreaLarge covers): each needs
+## its stored fit; a fit is of one ELF.
+test_that("hasPreRunIgnitionFitForThisPolygon(): every ELF of .ELFind needs its row", {
+  rows <- data.frame(polygonID = c("6.1.1", "6.1.2"))
+  has <- function(id, r = rows) hasPreRunIgnitionFitForThisPolygon(list(ignitionFitPreRun = r, .ELFind = id))
+  expect_true(has("6.1.1"))
+  expect_true(has(c("6.1.2", "6.1.1")))
+  expect_false(has(c("6.1.1", "6.1.3")))
+  expect_false(has(NA_character_, data.frame(polygonID = NA)))
+  expect_false(has(character(0)))
+})
+
+test_that("over several ELFs the default doFit uses their stored fits; a fit of several stops", {
+  paths <- localLedgerPaths()
+  commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
+  next_to <- terra::vect(terra::ext(2500, 5000, 0, 2500), crs = "EPSG:3005")
+  runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
+  runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.2", studyArea = next_to))
+  both <- terra::vect(terra::ext(0, 5000, 0, 2500), crs = "EPSG:3005")
+  objs <- list(.ELFind = c("6.1.1", "6.1.2"), studyArea = both)
+  msgs <- new.env()
+  sim <- runIgnitionModule(paths, params = c(commonParams, list(doFit = NULL)), objects = objs, msgs = msgs)
+  expect_length(grep("using those instead of fitting", msgs$text), 1L)
+  ## the pooled covariates of several ELFs are not compared with one ELF's stored model
+  dropLightning <- function(d) data.table::set(d, j = "lightning", value = NULL)
+  noLightning <- c(objs, list(fireSense_ignitionCovariates = dropLightning(makeIgnitionCovariates()),
+                              fireSense_escapeCovariates = dropLightning(makeIgnitionCovariates(escapes = TRUE))))
+  msgs <- new.env()
+  runIgnitionModule(paths, params = c(commonParams, list(doFit = NULL)), objects = noLightning, msgs = msgs)
+  expect_length(grep("using those instead of fitting", msgs$text), 1L)
+  expect_error(runIgnitionModule(paths, params = c(commonParams, list(doFit = TRUE)), objects = objs),
+               "a fit is of one ELF.*6\\.1\\.1, 6\\.1\\.2")
 })

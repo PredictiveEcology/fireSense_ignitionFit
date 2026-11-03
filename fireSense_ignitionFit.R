@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9121)",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9142)",
                   "ggplot2", "ggpubr", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -70,7 +70,8 @@ defineModule(sim, list(
     defineParameter("fitFileSuffix", "character", "", NA, NA,
                     paste("Text put after the model tag in the ledger file names, e.g. `\"_boundfix_rep81\"`, so a test run",
                           "writes and reads (`\"latest\"`) only its own files, never the production ones. `\"\"` (the",
-                          "default) is the production ledger. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`;",
+                          "default) writes the unsuffixed file and reads (`\"latest\"`) every file of the model tag, newest by the date in its",
+                          "suffix (`fireSenseUtils::ledgerFileOrder()`); experiment fits belong in `spreadFitLedgerFolder(testing = TRUE)`. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`;",
                           "set it for all with `.globals = list(fitFileSuffix = ...)`; modules that disagree stop",
                           "(`SpaDES.core::paramCheckOtherMods()`). Ignored when a file name is given.")),
     defineParameter("ignitionFitFilename", "character", "latest",
@@ -79,14 +80,16 @@ defineModule(sim, list(
                                   "default) reads and writes the file named for this fit's fire years and model,",
                                   "`fireSenseUtils::ignitionFitFilenameFor()`, e.g.",
                                   "`fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`.")),
-    defineParameter("doFit", "logical", NA, NA, NA,
-                    paste("Whether to fit this polygon. NA (default): do whatever is needed -- use the ledger's",
-                          "ignition and escape fits if it holds them for this polygon (and they fit the current",
-                          "covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS",
-                          "ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). FALSE: never",
-                          "fit -- use the ledger's fits, and stop with an error if it holds none for this polygon.")),
+    defineParameter("doFit", "logical", FALSE, NA, NA,
+                    paste("Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and",
+                          "stop with an error if it holds none for this polygon (`fitFileSuffix` picks the ledger), so",
+                          "a run that only predicts can never start a fit by accident. NA: do whatever is needed --",
+                          "use the ledger's ignition and escape fits if it holds them for this polygon (and they fit",
+                          "the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR",
+                          "DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale).")),
     defineParameter("refitExisting", "logical", NA, NA, NA,
-                    paste("DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing."))
+                    paste("DEPRECATED, use `doFit`. TRUE is `doFit = TRUE`; NA (unset) and FALSE do nothing.",
+                          "Overrides `doFit = FALSE` (the default), not `doFit = NA` or TRUE."))
   ),
   inputObjects = bindrows(
     expectsInput(".ELFind", "character",
@@ -217,9 +220,13 @@ frequencyFitRun <- function(sim) {
   doFit <- fireSenseUtils::resolveDoFit(P(sim)$doFit, P(sim)$refitExisting,
                                         module = "fireSense_ignitionFit", message = TRUE)
   if (!fireSenseUtils::mustFit(doFit, hasPreRunIgnitionFitForThisPolygon(sim) && useExistingFitIsCompatible(sim),
-                               sim$.ELFind)) {
+                               paste(sim$.ELFind, collapse = ", "), fitFileSuffix = P(sim)$fitFileSuffix)) {
     return(invisible(useExistingIgnitionFit(sim)))
   }
+  if (length(sim$.ELFind) > 1L)
+    stop("fireSense_ignitionFit: a fit is of one ELF, but this run covers several (", paste(sim$.ELFind, collapse = ", "),
+         "). Fit each on its own (`.ELFind`), or predict from their stored fits (`doFit = FALSE`, the default).",
+         call. = FALSE)
 
   #TODO: make cache smart by digest args in advance
   whichProcessesToFit <- P(sim)$whichProcessesToFit

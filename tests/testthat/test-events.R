@@ -19,7 +19,7 @@ runModule <- function(params = list(), objects = list(), end = 1, run = TRUE, dr
   utils::capture.output(suppressWarnings(suppressMessages({
     sim <- SpaDES.core::simInit(times = list(start = 1, end = end), modules = moduleName,
                                 paths = paths, objects = objects,
-                                params = stats::setNames(list(params), moduleName))
+                                params = stats::setNames(list(testParams(params)), moduleName))
     if (run) sim <- SpaDES.core::spades(sim)
   })))
   sim

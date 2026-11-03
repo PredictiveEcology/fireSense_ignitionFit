@@ -54,3 +54,13 @@ makeSparseCovariates <- function(nPix = 2000, nYr = 10) {
   )
   dt
 }
+
+## The tests' module parameters: `doFit = NA` (fit when the ledger has no row; the module default before
+## 2026-11-02, now FALSE) unless a test sets it, because most tests fit. A test of the module's default
+## sets `doFit = NULL`, which removes it. Other NULL parameters stay (`ignitionFitGoogleDriveFolder = NULL`
+## keeps the ledger local).
+testParams <- function(params) {
+  if (!"doFit" %in% names(params)) return(c(params, list(doFit = NA)))
+  if (is.null(params$doFit)) params <- params[names(params) != "doFit"]
+  params
+}
