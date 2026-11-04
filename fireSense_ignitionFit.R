@@ -20,7 +20,7 @@ defineModule(sim, list(
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
                   "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9142)",
-                  "ggplot2", "ggpubr", "magrittr", "purrr", "RColorBrewer",
+                  "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
                   "PredictiveEcology/reproducible@development (>= 3.2.1.9067)", # CacheGeo: ledger with xgboost models; `le = le` no longer partially matches `ledger`
