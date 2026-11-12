@@ -64,3 +64,17 @@ testParams <- function(params) {
   if (is.null(params$doFit)) params <- params[names(params) != "doFit"]
   params
 }
+
+## The cache and a quiet call for the tests that fit with runXGBOOST()
+## (`testPaths` is made by setup.R, which a helper does not see: it is read from the calling test)
+fitCache <- function() {
+  withr::local_options(list(reproducible.cachePath = file.path(get("testPaths", envir = parent.frame())$cachePath,
+                                                               "runXGBOOST")),
+                       .local_envir = parent.frame())
+}
+
+fitQuietly <- function(...) {
+  res <- NULL
+  utils::capture.output(suppressWarnings(suppressMessages(res <- runXGBOOST(...))))
+  res
+}

@@ -105,7 +105,9 @@ defineModule(sim, list(
                  sourceURL = NA),
     expectsInput("fireSense_ignitionCovariates", "data.frame",
                  desc = paste("Table of aggregated ignition covariates with annual `ignitions` counts,",
-                              "one row per `pixelID` and `year`.")),
+                              "one row per `pixelID` and `year`. An optional column `coreFraction` (from fireSense_dataPrepFit)",
+                              "is the share of the pixel in the ELF's core, where the ignitions are counted: the ignition fit",
+                              "weights the pixel by it and is not given it as a covariate. Without it every pixel counts fully.")),
     expectsInput("ignitionFitRTM", "SpatRaster",
                  desc = paste("Template raster at the resolution and extent of `fireSense_ignitionCovariates`.",
                               "Its resolution and its number of non-NA cells, which must be in the attribute `nonNAs`",
@@ -325,9 +327,16 @@ dataDigest <- function(data) {
 #'   `model$yearTotals`), which `fireSense_burn` draws each year, with one z shared by ignitions, escapes and spread.
 buildModelsFitModels <- function(igOrEsc, sim) {
   covariatesHere <- igOrEscNames(igOrEsc, post = "Covariates")
-  data <- prepareCovariatesOuter(sim[[covariatesHere]], 
-                                 algorithm = Par$modelAlgorithm, 
+  ## coreFraction is an exposure: standardising it would turn it into a covariate-like column
+  covariates <- as.data.table(sim[[covariatesHere]])
+  coreFraction <- covariates[[coreFractionTxt]]
+  data <- prepareCovariatesOuter(covariates[, setdiff(names(covariates), coreFractionTxt), with = FALSE],
+                                 algorithm = Par$modelAlgorithm,
                                  rescaleVars = Par$rescaleVars)
+  if (!is.null(coreFraction)) {
+    set(data$covariates, NULL, coreFractionTxt, coreFraction)
+    data$digestOfData <- c(data$digestOfData, list(coreFraction = .robustDigest(coreFraction)))
+  }
   
   nFolds <- 5
 
@@ -382,8 +391,11 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 #' `ignitions > 0` are used. The RNG seed is fixed, and restored on exit, so folds repeat and
 #' caching works.
 #'
-#' @param dat data.table of response and covariates. `pixelID`, `year` and `yearChar` columns
-#'   are dropped.
+#' @param dat data.table of response and covariates. `pixelID`, `year`, `yearChar` and `coreFraction`
+#'   columns are not features. The ignition fit has the weight `coreFraction` (see `exposureOf()`): rows
+#'   without core are dropped, and the model is fitted to `ignitions / coreFraction`. Everything else keeps
+#'   the integer response: the folds, `stopIfFoldsLackPositives()` and the ROC curves. The predictions
+#'   in `valData` and `yearTotals` are expected counts, the model's prediction times `coreFraction`.
 #' @param dig Digest of the unscaled covariates, used to cache the creation of dummy variables.
 #' @param type `"ignition"` or `"escape"`; also the pattern that finds the response column.
 #' @param nFolds Number of folds.
@@ -413,19 +425,23 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   if (identical(type, "escape")) {
     dat3Forxgboost <- dat3Forxgboost[ignitions > 0]
   }
+  if (identical(type, "ignition") && !is.null(dat3Forxgboost[[coreFractionTxt]]))
+    dat3Forxgboost <- dat3Forxgboost[dat3Forxgboost[[coreFractionTxt]] > 0, ]
+  weight <- exposureOf(dat3Forxgboost, type)
   trainIndexK <- cvFolds(dat3Forxgboost[[grep(value = TRUE, type, colnames(dat3Forxgboost))]], nFolds)
   yearOfRow <- dat3Forxgboost[[fireSenseUtils::yearTxt]] # dropped from the features below
 
-  colOrder <- setdiff(colnames(dat3Forxgboost), c("pixelID", "year"))
+  colOrder <- setdiff(colnames(dat3Forxgboost), c("pixelID", "year", coreFractionTxt))
   colOrder <- colOrder[colOrder %in% grep("yearChar", colnames(dat3Forxgboost), invert = TRUE, value = TRUE)]
   colOrder <- sample(colOrder)
   dat3Forxgboost <- dat3Forxgboost[, ..colOrder]
-  dig <- .robustDigest(dat3Forxgboost)
+  dig <- c(.robustDigest(dat3Forxgboost), if (!all(weight == 1)) .robustDigest(weight))
   colnamesNoIgn <- xgbFeatureNames(colnames(dat3Forxgboost)) # alphabetical
   dat3ForxgboostNoIgn <- dat3Forxgboost[, ..colnamesNoIgn]
 
   ignOrEscapeColName <- grep(value = TRUE,type, colnames(dat3Forxgboost))
-  stopIfFoldsLackPositives(dat3Forxgboost[[ignOrEscapeColName]], trainIndexK, type)
+  response <- dat3Forxgboost[[ignOrEscapeColName]]
+  stopIfFoldsLackPositives(response, trainIndexK, type)
   st <- system.time(
     mm <- purrr::pmap(
       list(valInd = trainIndexK, kFold = seq(nFolds)),
@@ -437,9 +453,10 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
         digValInd <- .robustDigest(valInd) # should be eval set
 
         mPoisson <- fitFoldXgboost(dat3ForxgboostNoIgn[wholeDataset], # should be whole set
-                                   dat3Forxgboost[, get(ignOrEscapeColName)][wholeDataset],
+                                   response[wholeDataset] / weight[wholeDataset],
                                    valInd, # should be keepEval
-                                   functionNameHelper("xgboost", type, kFold), c(dig, digValInd, type))
+                                   functionNameHelper("xgboost", type, kFold), c(dig, digValInd, type),
+                                   weight = weight[wholeDataset])
         # Predict probabilities
         valData <- dat3Forxgboost[valInd, ]
         pred2 <- predict(mPoisson, valData)
@@ -447,7 +464,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
           stop(type, " cross-validation fold ", kFold, ": the model predicted ", sum(!is.finite(pred2)),
                " non-finite values out of ", length(pred2), call. = FALSE)
         }
-        valData <- cbind(valData, predPoisson = pred2)
+        valData <- cbind(valData, predPoisson = pred2 * weight[valInd]) # expected count
 
         shap_values <- shap.values(mPoisson, dat3ForxgboostNoIgn) |>
           Cache(omitArgs = formalArgs(shap.values),
@@ -466,17 +483,16 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   rocs <- rocPerFold(mm, ignOrEscapeColName)
   aucs <- aucPerFold(rocs)
   print(meanRocMessage(aucs))
-  response <- dat3Forxgboost[[ignOrEscapeColName]]
   yearTotals <- outOfFoldYearTotals(yearOfRow, response, trainIndexK,
                                     lapply(mm, function(m) m$valData$predPoisson))
   ## the yearSD comes from out-of-year totals: refit with whole years held out, when every fold can train
   yearFolds <- yearBlockedFolds(yearOfRow, nFolds)
   if (!is.null(yearFolds) && !any(foldsLackPositives(response, yearFolds))) {
     heldOut <- Map(fold = yearFolds, kFold = seq_along(yearFolds), f = function(fold, kFold) {
-      m <- fitFoldXgboost(dat3ForxgboostNoIgn, response, fold$keepEval,
+      m <- fitFoldXgboost(dat3ForxgboostNoIgn, response / weight, fold$keepEval,
                           functionNameHelper("xgboostYearBlocked", type, kFold),
-                          c(dig, .robustDigest(fold$keepEval), type))
-      predict(m, dat3Forxgboost[fold$keepEval, ])
+                          c(dig, .robustDigest(fold$keepEval), type), weight = weight)
+      predict(m, dat3Forxgboost[fold$keepEval, ]) * weight[fold$keepEval]
     })
     yearTotals <- outOfFoldYearTotals(yearOfRow, response, yearFolds, heldOut)
   }
@@ -588,13 +604,14 @@ yearBlockedFolds <- function(year, nFolds) {
 #' so `rds`.
 #'
 #' @param x Covariates (no response).
-#' @param y Response.
+#' @param y Response (label); `ignitions / weight` when the rows are weighted.
 #' @param evalSet Row indices held out of training.
 #' @param functionName `.functionName` for `Cache()`.
 #' @param cacheExtra `.cacheExtra` for `Cache()`: digests of the data and of `evalSet`, and the type.
+#' @param weight Weight of each row of `x`, also for the held-out rows (`NULL`: all 1).
 #' @return An xgboost model.
-fitFoldXgboost <- function(x, y, evalSet, functionName, cacheExtra) {
-  xgboost(x = x, y = y,
+fitFoldXgboost <- function(x, y, evalSet, functionName, cacheExtra, weight = NULL) {
+  xgboost(x = x, y = y, weights = weight,
           objective = fireSenseUtils::ignitionObjectiveTxt,
           nthread = fireSenseUtils::nThreads(),
           eval_set = evalSet,
@@ -604,7 +621,7 @@ fitFoldXgboost <- function(x, y, evalSet, functionName, cacheExtra) {
           max_depth = 2,
           reg_lambda = 0.5,
           learning_rate = 0.15
-  ) |> Cache(omitArgs = c("x", "y", "eval_set", "nthread"),
+  ) |> Cache(omitArgs = c("x", "y", "weights", "eval_set", "nthread"),
              .functionName = functionName,
              .cacheExtra = cacheExtra,
              cacheSaveFormat = "rds")
@@ -673,7 +690,7 @@ plotPredictions <- function(df, fuelOrClimate, labels, value, jitter, colors, fu
 #'   `CMD|light|positiveCG` are the climate ones.
 setupPlots <- function(modelOnly, dat, igOrEsc, nGrid = 50) {
 
-  cnNoIgnNoEsc <- colnames(dat) |> setdiff(c(fireSenseUtils::ignitionsTxt, fireSenseUtils::escapesTxt, "year", "pixelID"))
+  cnNoIgnNoEsc <- colnames(dat) |> setdiff(c(fireSenseUtils::ignitionsTxt, fireSenseUtils::escapesTxt, "year", "pixelID", coreFractionTxt))
   dat <- dat[, ..cnNoIgnNoEsc]
 
   df <- Map(fold = seq_along(modelOnly), function(fold) {

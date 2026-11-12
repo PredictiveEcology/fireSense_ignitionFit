@@ -45,13 +45,13 @@ ledgerRowForThisPolygon <- function(sim) {
 
 #' Names of the features `runXGBOOST()` gives the model
 #'
-#' Every column except `pixelID`, `year`, `yearChar*` and the responses, in alphabetical order.
+#' Every column except `pixelID`, `year`, `coreFraction`, `yearChar*` and the responses, in alphabetical order.
 #' `runXGBOOST()` and [storedFitIsCompatible()] both use it, so they cannot disagree.
 #'
 #' @param cols Character vector of the column names of the fit data.
 #' @return Character vector.
 xgbFeatureNames <- function(cols) {
-  cols <- setdiff(cols, c("pixelID", "year"))
+  cols <- setdiff(cols, c("pixelID", "year", coreFractionTxt))
   cols <- grep("yearChar", cols, invert = TRUE, value = TRUE)
   sort(grep(paste0(fireSenseUtils::ignitionsTxt, "|", fireSenseUtils::escapesTxt), cols,
             value = TRUE, invert = TRUE))
@@ -128,7 +128,7 @@ buildModelCallees <- function() {
   list(runXGBOOST = runXGBOOST, cvFolds = cvFolds, stopIfFoldsLackPositives = stopIfFoldsLackPositives,
        xgbFeatureNames = xgbFeatureNames, rocPerFold = rocPerFold, aucPerFold = aucPerFold,
        outOfFoldYearTotals = outOfFoldYearTotals, yearBlockedFolds = yearBlockedFolds,
-       foldsLackPositives = foldsLackPositives, fitFoldXgboost = fitFoldXgboost,
+       foldsLackPositives = foldsLackPositives, fitFoldXgboost = fitFoldXgboost, exposureOf = exposureOf,
        ignitionObjectiveTxt = fireSenseUtils::ignitionObjectiveTxt)
 }
 

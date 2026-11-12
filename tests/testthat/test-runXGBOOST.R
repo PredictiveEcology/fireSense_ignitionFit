@@ -2,17 +2,6 @@
 ## function of CMDsm and youngAge only, and `escapes` of lightning only, so what the fitted models
 ## must achieve is known without running them: they separate the outcomes (AUC = 1).
 
-fitCache <- function() {
-  withr::local_options(list(reproducible.cachePath = file.path(testPaths$cachePath, "runXGBOOST")),
-                       .local_envir = parent.frame())
-}
-
-fitQuietly <- function(...) {
-  res <- NULL
-  utils::capture.output(suppressWarnings(suppressMessages(res <- runXGBOOST(...))))
-  res
-}
-
 test_that("runXGBOOST returns one model per fold, fitted on the covariates only", {
   fitCache()
   dat <- scaleCovariates(makeIgnitionCovariates())
