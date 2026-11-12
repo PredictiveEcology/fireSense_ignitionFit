@@ -51,7 +51,7 @@ ledgerRowForThisPolygon <- function(sim) {
 #' @param cols Character vector of the column names of the fit data.
 #' @return Character vector.
 xgbFeatureNames <- function(cols) {
-  cols <- setdiff(cols, c("pixelID", "year", coreFractionTxt))
+  cols <- setdiff(cols, c("pixelID", "year", fireSenseUtils::coreFractionTxt))
   cols <- grep("yearChar", cols, invert = TRUE, value = TRUE)
   sort(grep(paste0(fireSenseUtils::ignitionsTxt, "|", fireSenseUtils::escapesTxt), cols,
             value = TRUE, invert = TRUE))

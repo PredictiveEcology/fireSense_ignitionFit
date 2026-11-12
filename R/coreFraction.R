@@ -1,7 +1,3 @@
-## The column of the ignition covariates made by fireSense_dataPrepFit: the share of a coarse pixel's flammable
-## cells that are in the core of the ELF, where the ignitions it counts start. An exposure, never a feature.
-coreFractionTxt <- "coreFraction"
-
 #' The exposure of each row of the fit data
 #'
 #' The ignitions are counted in the core of the ELF, so a pixel with a core share of `coreFraction` can hold only
@@ -14,6 +10,6 @@ coreFractionTxt <- "coreFraction"
 #' @param type `"ignition"` or `"escape"`.
 #' @return Numeric, one per row: `coreFraction` for `"ignition"` with the column, otherwise 1.
 exposureOf <- function(dat, type) {
-  w <- if (identical(type, "ignition")) dat[[coreFractionTxt]]
+  w <- if (identical(type, "ignition")) dat[[fireSenseUtils::coreFractionTxt]]
   if (is.null(w)) rep(1, nrow(dat)) else w
 }

@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9142)",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9161)",
                   "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -327,17 +327,10 @@ dataDigest <- function(data) {
 #'   `model$yearTotals`), which `fireSense_burn` draws each year, with one z shared by ignitions, escapes and spread.
 buildModelsFitModels <- function(igOrEsc, sim) {
   covariatesHere <- igOrEscNames(igOrEsc, post = "Covariates")
-  ## coreFraction is an exposure: standardising it would turn it into a covariate-like column
-  covariates <- as.data.table(sim[[covariatesHere]])
-  coreFraction <- covariates[[coreFractionTxt]]
-  data <- prepareCovariatesOuter(covariates[, setdiff(names(covariates), coreFractionTxt), with = FALSE],
+  data <- prepareCovariatesOuter(sim[[covariatesHere]],
                                  algorithm = Par$modelAlgorithm,
                                  rescaleVars = Par$rescaleVars)
-  if (!is.null(coreFraction)) {
-    set(data$covariates, NULL, coreFractionTxt, coreFraction)
-    data$digestOfData <- c(data$digestOfData, list(coreFraction = .robustDigest(coreFraction)))
-  }
-  
+  ## `rescaleCovariates()` does not scale coreFraction, and it is in the unscaled data `digestOfData` hashes
   nFolds <- 5
 
   modelHere <- buildModel(covariates = data$covariates,
@@ -425,13 +418,13 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   if (identical(type, "escape")) {
     dat3Forxgboost <- dat3Forxgboost[ignitions > 0]
   }
-  if (identical(type, "ignition") && !is.null(dat3Forxgboost[[coreFractionTxt]]))
-    dat3Forxgboost <- dat3Forxgboost[dat3Forxgboost[[coreFractionTxt]] > 0, ]
+  if (identical(type, "ignition") && !is.null(dat3Forxgboost[[fireSenseUtils::coreFractionTxt]]))
+    dat3Forxgboost <- dat3Forxgboost[dat3Forxgboost[[fireSenseUtils::coreFractionTxt]] > 0, ]
   weight <- exposureOf(dat3Forxgboost, type)
   trainIndexK <- cvFolds(dat3Forxgboost[[grep(value = TRUE, type, colnames(dat3Forxgboost))]], nFolds)
   yearOfRow <- dat3Forxgboost[[fireSenseUtils::yearTxt]] # dropped from the features below
 
-  colOrder <- setdiff(colnames(dat3Forxgboost), c("pixelID", "year", coreFractionTxt))
+  colOrder <- setdiff(colnames(dat3Forxgboost), c("pixelID", "year", fireSenseUtils::coreFractionTxt))
   colOrder <- colOrder[colOrder %in% grep("yearChar", colnames(dat3Forxgboost), invert = TRUE, value = TRUE)]
   colOrder <- sample(colOrder)
   dat3Forxgboost <- dat3Forxgboost[, ..colOrder]
@@ -690,7 +683,7 @@ plotPredictions <- function(df, fuelOrClimate, labels, value, jitter, colors, fu
 #'   `CMD|light|positiveCG` are the climate ones.
 setupPlots <- function(modelOnly, dat, igOrEsc, nGrid = 50) {
 
-  cnNoIgnNoEsc <- colnames(dat) |> setdiff(c(fireSenseUtils::ignitionsTxt, fireSenseUtils::escapesTxt, "year", "pixelID", coreFractionTxt))
+  cnNoIgnNoEsc <- colnames(dat) |> setdiff(c(fireSenseUtils::ignitionsTxt, fireSenseUtils::escapesTxt, "year", "pixelID", fireSenseUtils::coreFractionTxt))
   dat <- dat[, ..cnNoIgnNoEsc]
 
   df <- Map(fold = seq_along(modelOnly), function(fold) {
