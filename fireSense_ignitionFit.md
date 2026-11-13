@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.2.0.9011"
-date: "Last updated: 2026-11-04"
+date: "Last updated: 2026-11-13"
 output:
   bookdown::html_document2:
     toc: true
@@ -89,7 +89,7 @@ Fitting escape also needs `fireSense_escapeCovariates` (from *fireSense_dataPrep
   <tr>
    <td style="text-align:left;"> fireSense_ignitionCovariates </td>
    <td style="text-align:left;"> data.frame </td>
-   <td style="text-align:left;"> Table of aggregated ignition covariates with annual `ignitions` counts, one row per `pixelID` and `year`. </td>
+   <td style="text-align:left;"> Table of aggregated ignition covariates with annual `ignitions` counts, one row per `pixelID` and `year`. An optional column `coreFraction` (from fireSense_dataPrepFit) is the share of the pixel in the ELF's core, where the ignitions are counted: the ignition fit weights the pixel by it and is not given it as a covariate. Without it every pixel counts fully. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
