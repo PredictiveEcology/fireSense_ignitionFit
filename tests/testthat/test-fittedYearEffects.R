@@ -85,3 +85,22 @@ test_that("an escape target above the ignitions gives the multiplier at which ev
   expect_equal(got$escapes[1], drawExpects(d, eff)$ignitions[1])   # all ignitions escape
 })
 
+
+test_that("the posterior is stored: a rep's multiplier * qgamma(p, shape, shape) is a draw of Gamma(a + O, a + mu)", {
+  d <- syntheticYears()
+  ## a small year, so the posterior is wide
+  data.table::set(d$ign, which(d$ign$year == 2003), "mean", 0.002)
+  data.table::set(d$ign, which(d$ign$year == 2003)[1], "observed", 4)
+  eff <- fittedYearEffects(d$ign, d$esc)
+  e <- eff$ignition
+  a <- 1 / expm1(e$priorSD[1]^2)
+  expect_equal(e$shape, a + e$observed)
+  p <- c(0.1, 0.5, 0.9)
+  ## fireSense_burn's draw of the year-2003 multiplier is the posterior's quantile
+  expect_equal(e$multiplier[3] * stats::qgamma(p, e$shape[3], e$shape[3]),
+               stats::qgamma(p, a + e$observed[3], a + e$expected[3]))
+  expect_true(all(is.finite(eff$escape$shape)))
+  ## no uncertainty where the multiplier is fixed at 1
+  d0 <- syntheticYears(uIgn = c(1, 1, 1), uEsc = c(1, 1, 1))
+  expect_true(all(is.na(fittedYearEffects(d0$ign, d0$esc)$ignition$shape)))
+})

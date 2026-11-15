@@ -20,13 +20,22 @@
 #' solved after ignitions, with `u_I` applied, and cannot exceed the ignitions (the cap in
 #' `escapeProbPerIgnition()`): a target above that gives the multiplier at which every ignition escapes.
 #'
+#' The posterior is kept, not only its mean, so a hindcast's reps carry the uncertainty of the year's effect:
+#' `shape = a + O_y` is stored, and `fireSense_burn` multiplies each rep-year by `multiplier * w`, with
+#' `w ~ Gamma(shape, rate = shape)` (mean 1; one uniform per rep-year and process, `qgamma(p, shape, shape)`).
+#' For ignitions `multiplier * w` is then exactly a draw of the posterior `Gamma(a + O_y, a + mu_y)`. For escapes
+#' `w` is the relative draw of the target count's posterior and is applied to the solved multiplier: exact at
+#' the mean and wherever the cap does not bind (it binds on about 1% of the expected escapes, ELF 6.6.2). `shape`
+#' is `NA` where the multiplier is fixed at 1 (nothing expected, or `s` 0): no draw.
+#'
 #' @param ignitions `data.table` of the ignition fit data, one row per pixel and year: `pixelID`, `year`,
 #'   `observed` (ignitions), `mean` (the predicted ignitions of the whole pixel) and `weight` (its share in
 #'   the core, `exposureOf()`).
 #' @param escapes `data.table` of the escape fit data: `pixelID`, `year`, `observed` (escapes) and `mean`
 #'   (the predicted escapes if ignited), for the same pixels and years.
 #' @return A list of two `data.frame`s, `ignition` and `escape`, one row per year: `year`, `observed` and
-#'   `expected` (the core totals with no effect), `priorSD` (`s`) and `multiplier`.
+#'   `expected` (the core totals with no effect), `priorSD` (`s`), `multiplier` (the posterior mean, solved through
+#'   the cap for escapes) and `shape` (of the posterior, `a + observed`; `NA`: no uncertainty).
 fittedYearEffects <- function(ignitions, escapes) {
   ign <- yearPosterior(ignitions$year, ignitions$observed, ignitions$weight * ignitions$mean)
   rows <- match(paste(escapes$pixelID, escapes$year), paste(ignitions$pixelID, ignitions$year))
@@ -53,9 +62,11 @@ yearPosterior <- function(year, observed, expected, summed = FALSE) {
   s <- fireSenseUtils::yearEffectSD(observed, expected)
   a <- 1 / expm1(s^2)
   multiplier <- if (s > 0) (a + observed) / (a + expected) else rep(1, length(observed))
+  shape <- if (s > 0) a + observed else rep(NA_real_, length(observed))
   multiplier[expected <= 0] <- 1
+  shape[expected <= 0] <- NA_real_
   data.frame(year = year, observed = unname(observed), expected = unname(expected), priorSD = s,
-             multiplier = unname(multiplier), row.names = NULL)
+             multiplier = unname(multiplier), shape = unname(shape), row.names = NULL)
 }
 
 ## The u at which the increasing `f(u)` (expected core escapes) is `target`; f is linear until the cap, so
