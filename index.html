@@ -166,7 +166,7 @@ fireSense_ignitionCovariates
 data.frame
 </td>
 <td style="text-align:left;">
-Table of aggregated ignition covariates with annual <code>ignitions</code> counts, one row per <code>pixelID</code> and <code>year</code>.
+Table of aggregated ignition covariates with annual <code>ignitions</code> counts, one row per <code>pixelID</code> and <code>year</code>. An optional column <code>coreFraction</code> (from fireSense_dataPrepFit) is the share of the pixel in the ELF’s core, where the ignitions are counted: the ignition fit weights the pixel by it and is not given it as a covariate. Without it every pixel counts fully.
 </td>
 <td style="text-align:left;">
 NA

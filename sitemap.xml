@@ -9,6 +9,7 @@
 <url><loc>/index.html</loc></url>
 <url><loc>/news/index.html</loc></url>
 <url><loc>/reference/Init.html</loc></url>
+<url><loc>/reference/addFittedYearEffects.html</loc></url>
 <url><loc>/reference/aucPerFold.html</loc></url>
 <url><loc>/reference/buildModel.html</loc></url>
 <url><loc>/reference/buildModelCallees.html</loc></url>
@@ -18,7 +19,9 @@
 <url><loc>/reference/doEvent.fireSense_ignitionFit.html</loc></url>
 <url><loc>/reference/dot-inputObjects.html</loc></url>
 <url><loc>/reference/exposureOf.html</loc></url>
+<url><loc>/reference/fitCovariates.html</loc></url>
 <url><loc>/reference/fitFoldXgboost.html</loc></url>
+<url><loc>/reference/fittedYearEffects.html</loc></url>
 <url><loc>/reference/foldsLackPositives.html</loc></url>
 <url><loc>/reference/foreignObjectives.html</loc></url>
 <url><loc>/reference/frequencyFitRun.html</loc></url>

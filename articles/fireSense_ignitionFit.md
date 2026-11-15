@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.2.0.9012"
-date: "Last updated: 2026-11-13"
+date: "Last updated: 2026-11-15"
 output:
   bookdown::html_document2:
     toc: true
@@ -294,12 +294,12 @@ Outputs are in Table \@ref(tab:moduleOutputs-fireSense-ignitionFit).
   <tr>
    <td style="text-align:left;"> fireSense_EscapeFitted </td>
    <td style="text-align:left;"> fireSense_EscapeFit </td>
-   <td style="text-align:left;"> List of `modelList` and `scaleData`, as `fireSense_IgnitionFitted`, with `modelList` of class `fireSense_EscapeFit`. Either freshly fitted, or, when `studyArea` matches a row of the shared ledger, read from it. </td>
+   <td style="text-align:left;"> List of `modelList` and `scaleData`, as `fireSense_IgnitionFitted`, with `modelList` of class `fireSense_EscapeFit` (its `yearEffects` multiply the expected escapes of an ignited pixel). Either freshly fitted, or, when `studyArea` matches a row of the shared ledger, read from it. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> fireSense_IgnitionFitted </td>
    <td style="text-align:left;"> fireSense_IgnitionFit </td>
-   <td style="text-align:left;"> List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models and their ROC curves and out-of-fold `yearTotals`, `fittingRes`, `lambdaRescaleFactor`, `rescales`, `yearSD`: the sd of the year effect that `fireSense_burn` draws; absent in fits stored before it existed, which means 0) and `scaleData` (centre and scale used to standardise the covariates). Either freshly fitted, or, when `studyArea` matches a row of the shared ledger, read from it. </td>
+   <td style="text-align:left;"> List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models and their ROC curves and out-of-fold `yearTotals`, `fittingRes`, `lambdaRescaleFactor`, `rescales`, `yearSD`: the sd of the year effect that `fireSense_burn` draws; absent in fits stored before it existed, which means 0; and, when both processes are fitted, `yearEffects`: the fitted multiplier of each fit year (`fittedYearEffects()`), which a hindcast of that year may use instead of a draw, `fireSense_burn`'s `yearEffects = "fitted"`; absent in older fits) and `scaleData` (centre and scale used to standardise the covariates). Either freshly fitted, or, when `studyArea` matches a row of the shared ledger, read from it. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> ignitionFitPreRun </td>
