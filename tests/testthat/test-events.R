@@ -42,7 +42,7 @@ test_that("init schedules checkData then run, and both processes are fitted and 
     fitted <- sim[[nm]]
     expect_identical(names(fitted), c("modelList", "scaleData"))
     ml <- fitted$modelList
-    expect_identical(names(ml), c("model", "rescales", "fittingRes", "lambdaRescaleFactor", "yearSD"))
+    expect_identical(names(ml), c("model", "rescales", "fittingRes", "lambdaRescaleFactor", "yearSD", "yearEffects"))
     expect_identical(names(ml$model), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
     ## the year effect's sd, from the out-of-fold yearly totals of the 4 synthetic years
     expect_identical(nrow(ml$model$yearTotals), 4L)
@@ -148,4 +148,24 @@ test_that("rescaleVars = FALSE fits on the covariates as supplied and returns no
   pred <- predict(sim$fireSense_IgnitionFitted$modelList$model$Fold1,
                   as.data.frame(raw)[, c("CMDsm", "lightning", "Pice_mar", "youngAge")])
   expect_equal(as.numeric(tapply(pred, raw$ignitions, mean)), c(0, 1, 2), tolerance = 0.1)
+})
+
+## fittedYearEffects() at the module level (its own tests are in test-fittedYearEffects.R)
+test_that("a fit of both processes stores its year effects; a fit of one does not", {
+  sim <- runModule(params = list(.plots = NA))
+  for (nm in c("fireSense_IgnitionFitted", "fireSense_EscapeFitted")) {
+    ye <- sim[[nm]]$modelList$yearEffects
+    expect_identical(ye$year, as.numeric(2001:2004))
+    expect_true(all(is.finite(ye$multiplier) & ye$multiplier > 0))
+  }
+  ## the stored ignition effects make the fold-mean in-sample prediction expect each year's target
+  ye <- sim$fireSense_IgnitionFitted$modelList$yearEffects
+  covs <- fitCovariates("ignition", sim, "xgboost", rescaleVars = TRUE)$covariates
+  lam <- fireSenseUtils::foldMeanPrediction(sim$fireSense_IgnitionFitted, covs)
+  raw <- sim$fireSense_ignitionCovariates
+  expect_equal(ye$expected, as.numeric(tapply(lam, raw$year, sum)))
+  expect_equal(ye$observed, as.numeric(tapply(raw$ignitions, raw$year, sum)))
+
+  one <- runModule(params = list(.plots = NA, whichProcessesToFit = "ignition"))
+  expect_null(one$fireSense_IgnitionFitted$modelList$yearEffects)
 })
