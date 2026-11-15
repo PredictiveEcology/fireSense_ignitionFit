@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9161)",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9168)", # 9168: foldMeanPrediction(), escapeProbPerIgnition()
                   "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -116,13 +116,16 @@ defineModule(sim, list(
   outputObjects = bindrows(
     createsOutput("fireSense_EscapeFitted", "fireSense_EscapeFit",
                   desc = paste("List of `modelList` and `scaleData`, as `fireSense_IgnitionFitted`,",
-                               "with `modelList` of class `fireSense_EscapeFit`. Either freshly fitted, or, when",
+                               "with `modelList` of class `fireSense_EscapeFit` (its `yearEffects` multiply the expected",
+                               "escapes of an ignited pixel). Either freshly fitted, or, when",
                                "`studyArea` matches a row of the shared ledger, read from it.")),
     createsOutput("fireSense_IgnitionFitted", "fireSense_IgnitionFit",
                   desc = paste("List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models",
                                "and their ROC curves and out-of-fold `yearTotals`, `fittingRes`, `lambdaRescaleFactor`,",
                                "`rescales`, `yearSD`: the sd of the year effect that `fireSense_burn` draws; absent in fits",
-                               "stored before it existed, which means 0)",
+                               "stored before it existed, which means 0; and, when both processes are fitted, `yearEffects`:",
+                               "the fitted multiplier of each fit year (`fittedYearEffects()`), which a hindcast of that year",
+                               "may use instead of a draw, `fireSense_burn`'s `yearEffects = \"fitted\"`; absent in older fits)",
                                "and `scaleData` (centre and scale used to standardise the covariates). Either freshly",
                                "fitted, or, when `studyArea` matches a row of the shared ledger, read from it.")),
     createsOutput("ignitionFitPreRun", "data.frame",
@@ -240,6 +243,9 @@ frequencyFitRun <- function(sim) {
 
   # put to sim sim$fireSense_IgnitionFitted, sim$fireSense_EscapeFitted
   list2env(fireSense_FittedModels, envir = envir(sim))
+  ## the escape effect is that of the escapes the fitted ignitions give, so it needs both fits
+  if (all(c("ignition", "escape") %in% whichProcessesToFit))
+    sim <- addFittedYearEffects(sim)
 
   if (!is.null(sim$studyArea))
     sim <- writeIgnitionLedgerRow(sim)
@@ -314,6 +320,41 @@ dataDigest <- function(data) {
   dig
 }
 
+#' The covariates of one process, prepared as its fit has them
+#'
+#' `prepareCovariatesOuter()` of `sim$fireSense_ignitionCovariates` or `sim$fireSense_escapeCovariates`, with the
+#' module's `modelAlgorithm` and `rescaleVars`. The rows stay in the order of the unprepared table.
+#'
+#' @inheritParams buildModelsFitModels
+#' @param modelAlgorithm,rescaleVars The module's parameters.
+#' @return The result of `prepareCovariatesOuter()`: `covariates` (standardised when `rescaleVars`) and more.
+fitCovariates <- function(igOrEsc, sim, modelAlgorithm = Par$modelAlgorithm, rescaleVars = Par$rescaleVars) {
+  prepareCovariatesOuter(sim[[igOrEscNames(igOrEsc, post = "Covariates")]],
+                         algorithm = modelAlgorithm, rescaleVars = rescaleVars)
+}
+
+#' Add the fitted year effects to the ignition and escape fits
+#'
+#' Predicts every pixel and year of the fit data with each fit (`fireSenseUtils::foldMeanPrediction()`) and
+#' stores `fittedYearEffects()` as `modelList$yearEffects` of `sim$fireSense_IgnitionFitted` and
+#' `sim$fireSense_EscapeFitted`, for `fireSense_ignitionPredict` to pass to `fireSense_burn`.
+#'
+#' @param sim A `simList` with both fits.
+#' @return `sim`, invisibly.
+addFittedYearEffects <- function(sim) {
+  one <- function(igOrEsc, fit, response) {
+    raw <- sim[[igOrEscNames(igOrEsc, post = "Covariates")]]
+    data.table(pixelID = raw$pixelID, year = raw[[fireSenseUtils::yearTxt]], observed = raw[[response]],
+               mean = fireSenseUtils::foldMeanPrediction(fit, fitCovariates(igOrEsc, sim)$covariates),
+               weight = exposureOf(raw, "ignition"))
+  }
+  eff <- fittedYearEffects(one("ignition", sim$fireSense_IgnitionFitted, fireSenseUtils::ignitionsTxt),
+                           one("escape", sim$fireSense_EscapeFitted, fireSenseUtils::escapesTxt))
+  sim$fireSense_IgnitionFitted$modelList$yearEffects <- eff$ignition
+  sim$fireSense_EscapeFitted$modelList$yearEffects <- eff$escape
+  invisible(sim)
+}
+
 #' Prepare covariates, fit one process, and plot it
 #'
 #' @param igOrEsc `"ignition"` or `"escape"`. Covariates are read from
@@ -326,10 +367,7 @@ dataDigest <- function(data) {
 #'   of the year effect on the predicted mean (`fireSenseUtils::yearEffectSD()` of the out-of-fold
 #'   `model$yearTotals`), which `fireSense_burn` draws each year, with one z shared by ignitions, escapes and spread.
 buildModelsFitModels <- function(igOrEsc, sim) {
-  covariatesHere <- igOrEscNames(igOrEsc, post = "Covariates")
-  data <- prepareCovariatesOuter(sim[[covariatesHere]],
-                                 algorithm = Par$modelAlgorithm,
-                                 rescaleVars = Par$rescaleVars)
+  data <- fitCovariates(igOrEsc, sim)
   ## `rescaleCovariates()` does not scale coreFraction, and it is in the unscaled data `digestOfData` hashes
   nFolds <- 5
 
