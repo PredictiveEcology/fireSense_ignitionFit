@@ -38,9 +38,7 @@
 #'   the cap for escapes) and `shape` (of the posterior, `a + observed`; `NA`: no uncertainty).
 fittedYearEffects <- function(ignitions, escapes) {
   ign <- yearPosterior(ignitions$year, ignitions$observed, ignitions$weight * ignitions$mean)
-  rows <- match(paste(escapes$pixelID, escapes$year), paste(ignitions$pixelID, ignitions$year))
-  if (anyNA(rows))
-    stop("fittedYearEffects(): ", sum(is.na(rows)), " escape rows have no ignition row of the same pixel and year")
+  rows <- matchedIgnitionRows(ignitions, escapes)
   lambda <- ignitions$mean[rows] * ign$multiplier[match(escapes$year, ign$year)]
   w <- ignitions$weight[rows]
   coreEscapes <- function(u, i) sum(w[i] * lambda[i] * fireSenseUtils::escapeProbPerIgnition(u * escapes$mean[i], lambda[i]))

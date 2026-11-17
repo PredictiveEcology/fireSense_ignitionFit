@@ -41,7 +41,8 @@ test_that("parameters are the expected names", {
     sort(md$parameters$paramName),
     sort(c(".neverCache", ".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
            "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
-           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting", "doFit", "fitFileSuffix"))
+           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting", "doFit", "fitFileSuffix",
+           "xgbMaxDepth", "xgbLearningRate", "xgbNrounds", "xgbRegLambda", "xgbEarlyStopping"))
   )
 })
 
@@ -55,7 +56,8 @@ test_that("parameters have the expected classes and defaults", {
       .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
       doFit = "logical", fitFileSuffix = "character", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
       modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
-      whichProcessesToFit = "character")
+      whichProcessesToFit = "character", xgbEarlyStopping = "numeric", xgbLearningRate = "numeric",
+      xgbMaxDepth = "numeric", xgbNrounds = "numeric", xgbRegLambda = "numeric")
   )
 
   default <- function(name) p$default[[match(name, p$paramName)]]
@@ -70,6 +72,9 @@ test_that("parameters have the expected classes and defaults", {
   expect_identical(default("ignitionFitFilename"), "latest")
   expect_identical(default("doFit"), FALSE)              # never fit: use the ledger's fit, stop if there is none
   expect_identical(default("refitExisting"), NA)         # deprecated alias: unset
+  expect_identical(c(default("xgbMaxDepth"), default("xgbLearningRate"), default("xgbNrounds"), default("xgbRegLambda")),
+                   c(2, 0.15, 100, 0.5))                  # the values the fits were hard-coded with
+  expect_true(is.na(default("xgbEarlyStopping")))        # off
   expect_identical(default("ignitionFitGoogleDriveFolder"),
                    fireSenseUtils::ignitionFitLedgerFolder())
   ## no parameter has bounds any more

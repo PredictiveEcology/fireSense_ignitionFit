@@ -356,3 +356,27 @@ test_that("over several ELFs the default doFit uses their stored fits; a fit of 
   expect_error(runIgnitionModule(paths, params = c(commonParams, list(doFit = TRUE)), objects = objs),
                "a fit is of one ELF.*6\\.1\\.1, 6\\.1\\.2")
 })
+
+test_that("a ledger fit made before the concentration diagnostic binds with new rows and is still used", {
+  paths <- localLedgerPaths()
+  commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
+  next_to <- terra::vect(terra::ext(10000, 12500, 0, 2500), crs = "EPSG:3005")
+  runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
+  ## make the stored row an old one: no concentration, no chain
+  file <- file.path(paths$inputPath, ledgerName)
+  ledger <- readRDS(file)
+  for (col in c("fireSense_IgnitionFitted", "fireSense_EscapeFitted")) {
+    expect_false(is.null(ledger[[col]][[1]]$modelList$concentration))
+    ledger[[col]][[1]]$modelList$concentration <- NULL
+  }
+  saveRDS(ledger, file)
+  ## a new fit of another polygon is appended to it, and the old row is read back without a concentration
+  sim2 <- runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.2", studyArea = next_to))
+  ledger <- readRDS(file)
+  expect_setequal(as.character(ledger$polygonID), c("6.1.1", "6.1.2"))
+  expect_null(ledger$fireSense_EscapeFitted[[which(ledger$polygonID == "6.1.1")]]$modelList$concentration)
+  expect_false(is.null(ledger$fireSense_EscapeFitted[[which(ledger$polygonID == "6.1.2")]]$modelList$concentration$chain))
+  sim3 <- runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
+  expect_null(sim3$fireSense_IgnitionFitted$modelList$concentration)
+  expect_false(is.null(sim3$fireSense_IgnitionFitted$modelList$yearEffects))
+})

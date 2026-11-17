@@ -42,7 +42,7 @@ test_that("init schedules checkData then run, and both processes are fitted and 
     fitted <- sim[[nm]]
     expect_identical(names(fitted), c("modelList", "scaleData"))
     ml <- fitted$modelList
-    expect_identical(names(ml), c("model", "rescales", "fittingRes", "lambdaRescaleFactor", "yearSD", "yearEffects"))
+    expect_identical(names(ml), c("model", "rescales", "fittingRes", "lambdaRescaleFactor", "yearSD", "concentration", "yearEffects"))
     expect_identical(names(ml$model), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
     ## the year effect's sd, from the out-of-fold yearly totals of the 4 synthetic years
     expect_identical(nrow(ml$model$yearTotals), 4L)

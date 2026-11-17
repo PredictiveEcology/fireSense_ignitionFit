@@ -14,9 +14,20 @@
 #' @return A `data.frame` with `year`, `observed` and `predicted`, one row per year, or `NULL` without `year`.
 outOfFoldYearTotals <- function(year, observed, folds, heldOutPreds) {
   if (is.null(year)) return(NULL)
-  pred <- rep(NA_real_, length(observed))
-  for (k in seq_along(folds)) pred[folds[[k]]$keepEval] <- heldOutPreds[[k]]
+  pred <- outOfFoldPrediction(length(observed), folds, heldOutPreds)
   tot <- rowsum(cbind(observed = as.numeric(observed), predicted = pred), group = year)
   data.frame(year = as.numeric(rownames(tot)), observed = tot[, "observed"], predicted = tot[, "predicted"],
              row.names = NULL)
+}
+
+#' The out-of-fold prediction of every row
+#'
+#' @param n Number of rows.
+#' @param folds Output of `cvFolds()` or `yearBlockedFolds()`.
+#' @param heldOutPreds List, one element per fold: the fold model's predictions on its `keepEval` rows.
+#' @return Numeric, length `n`: each row's prediction by the fold model that did not train on it.
+outOfFoldPrediction <- function(n, folds, heldOutPreds) {
+  pred <- rep(NA_real_, n)
+  for (k in seq_along(folds)) pred[folds[[k]]$keepEval] <- heldOutPreds[[k]]
+  pred
 }

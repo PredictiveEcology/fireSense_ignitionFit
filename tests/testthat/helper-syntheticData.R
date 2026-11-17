@@ -78,3 +78,29 @@ fitQuietly <- function(...) {
   utils::capture.output(suppressWarnings(suppressMessages(res <- runXGBOOST(...))))
   res
 }
+
+## A module run with fresh paths, keeping the messages (`msgs$text`)
+## (`moduleName` and `modulePath` are made by setup.R, which a helper does not see: read from the calling test)
+localModulePaths <- function() {
+  root <- withr::local_tempdir(.local_envir = parent.frame())
+  paths <- list(cachePath = file.path(root, "cache"), inputPath = file.path(root, "inputs"),
+                modulePath = get("modulePath", envir = parent.frame()), outputPath = file.path(root, "outputs"))
+  for (p in paths[c("cachePath", "inputPath", "outputPath")]) dir.create(p, recursive = TRUE, showWarnings = FALSE)
+  paths
+}
+
+runModuleMsgs <- function(paths, msgs, params = list(), drop = character()) {
+  moduleName <- get("moduleName", envir = parent.frame())
+  objects <- list(fireSense_ignitionCovariates = makeIgnitionCovariates(),
+                  fireSense_escapeCovariates = makeIgnitionCovariates(escapes = TRUE),
+                  ignitionFitRTM = makeIgnitionFitRTM())
+  objects <- objects[setdiff(names(objects), drop)]
+  msgs$text <- character()
+  sim <- NULL
+  utils::capture.output(suppressWarnings(withCallingHandlers({
+    sim <- SpaDES.core::simInit(times = list(start = 1, end = 1), modules = moduleName, paths = paths, objects = objects,
+                                params = stats::setNames(list(testParams(c(list(.plots = NA), params))), moduleName))
+    sim <- SpaDES.core::spades(sim)
+  }, message = function(m) { msgs$text <- c(msgs$text, conditionMessage(m)); invokeRestart("muffleMessage") })))
+  sim
+}
