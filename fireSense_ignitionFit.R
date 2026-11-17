@@ -80,6 +80,23 @@ defineModule(sim, list(
                                   "default) reads and writes the file named for this fit's fire years and model,",
                                   "`fireSenseUtils::ignitionFitFilenameFor()`, e.g.",
                                   "`fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`.")),
+    defineParameter("xgbMaxDepth", "numeric", 2, NA, NA,
+                    paste("xgboost `max_depth`, the depth of each tree, of the ignition and the escape fits. Few, shallow trees",
+                          "(the default 2) and shrinkage pull the predictions toward the mean; deeper trees concentrate them.",
+                          "The defaults of the five `xgb*` parameters are the values the fits were hard-coded with,",
+                          "so a fit with them is the one made before they existed (`xgbSettings()`).")),
+    defineParameter("xgbLearningRate", "numeric", 0.15, NA, NA,
+                    "xgboost `learning_rate`, the shrinkage of each boosting round."),
+    defineParameter("xgbNrounds", "numeric", 100, NA, NA,
+                    paste("xgboost `nrounds`, the number of boosting rounds; with `xgbEarlyStopping`, the most a fold",
+                          "may use.")),
+    defineParameter("xgbRegLambda", "numeric", 0.5, NA, NA, "xgboost `reg_lambda`, the L2 penalty on the leaf weights."),
+    defineParameter("xgbEarlyStopping", "numeric", NA_real_, NA, NA,
+                    paste("`NA` (default): off, every fold boosts `xgbNrounds` rounds. A number of rounds: each fold's",
+                          "boosting stops once the Poisson loss of its held-out rows (`cvFolds()`, or the whole years of",
+                          "`yearBlockedFolds()` for the year-blocked models) has not improved for this many rounds,",
+                          "and the fold's model keeps the best round (at most `xgbNrounds`). The fold is chosen",
+                          "with its own held-out rows, so its predictions on them are slightly optimistic.")),
     defineParameter("doFit", "logical", FALSE, NA, NA,
                     paste("Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and",
                           "stop with an error if it holds none for this polygon (`fitFileSuffix` picks the ledger), so",
@@ -264,10 +281,11 @@ frequencyFitRun <- function(sim) {
 #' @param dig Digest of the unscaled covariates, passed to `runXGBOOST()` as its cache key.
 #' @param modelAlgorithm See the `modelAlgorithm` module parameter; must contain `"xgb"`.
 #' @param nFolds Number of cross-validation folds.
+#' @param xgb Boosting settings, `xgbSettings()`.
 #' @return See `runXGBOOST()`.
 buildModel <- function(covariates, type = "ignition",
                        dig,
-                       modelAlgorithm, nFolds = 5) {
+                       modelAlgorithm, nFolds = 5, xgb = xgbSettings()) {
 
   if (!any(grepl("xgb", modelAlgorithm)))
     stop("modelAlgorithm must be an xgboost algorithm; the non-xgboost path was removed.")
@@ -282,7 +300,7 @@ buildModel <- function(covariates, type = "ignition",
   for (i in varToInt)
     set(dat, NULL, i, as.integer(dat[[i]]))
 
-  runXGBOOST(dat, dig, type = type, nFolds = nFolds)
+  runXGBOOST(dat, dig, type = type, nFolds = nFolds, xgb = xgb)
 }
 
 
@@ -333,11 +351,12 @@ fitCovariates <- function(igOrEsc, sim, modelAlgorithm = Par$modelAlgorithm, res
                          algorithm = modelAlgorithm, rescaleVars = rescaleVars)
 }
 
-#' Add the fitted year effects to the ignition and escape fits
+#' Add the fitted year effects and the chained-escape factor to the ignition and escape fits
 #'
 #' Predicts every pixel and year of the fit data with each fit (`fireSenseUtils::foldMeanPrediction()`) and
 #' stores `fittedYearEffects()` as `modelList$yearEffects` of `sim$fireSense_IgnitionFitted` and
-#' `sim$fireSense_EscapeFitted`, for `fireSense_ignitionPredict` to pass to `fireSense_burn`.
+#' `sim$fireSense_EscapeFitted`, for `fireSense_ignitionPredict` to pass to `fireSense_burn`, and
+#' `chainedEscapeFactor()` of the same predictions as `modelList$concentration$chain` of the escape fit (logged).
 #'
 #' @param sim A `simList` with both fits.
 #' @return `sim`, invisibly.
@@ -348,10 +367,13 @@ addFittedYearEffects <- function(sim) {
                mean = fireSenseUtils::foldMeanPrediction(fit, fitCovariates(igOrEsc, sim)$covariates),
                weight = exposureOf(raw, "ignition"))
   }
-  eff <- fittedYearEffects(one("ignition", sim$fireSense_IgnitionFitted, fireSenseUtils::ignitionsTxt),
-                           one("escape", sim$fireSense_EscapeFitted, fireSenseUtils::escapesTxt))
+  ignitions <- one("ignition", sim$fireSense_IgnitionFitted, fireSenseUtils::ignitionsTxt)
+  escapes <- one("escape", sim$fireSense_EscapeFitted, fireSenseUtils::escapesTxt)
+  eff <- fittedYearEffects(ignitions, escapes)
   sim$fireSense_IgnitionFitted$modelList$yearEffects <- eff$ignition
   sim$fireSense_EscapeFitted$modelList$yearEffects <- eff$escape
+  sim$fireSense_EscapeFitted$modelList$concentration$chain <- chainedEscapeFactor(ignitions, escapes)
+  message(chainMessage(sim$fireSense_EscapeFitted$modelList$concentration$chain))
   invisible(sim)
 }
 
@@ -365,7 +387,8 @@ addFittedYearEffects <- function(sim) {
 #'   `model` (from `buildModel()`), `rescales`, `fittingRes` (resolution of `ignitionFitRTM`),
 #'   `lambdaRescaleFactor` (rows of covariates / non-NA cells of `ignitionFitRTM`) and `yearSD`, the sd
 #'   of the year effect on the predicted mean (`fireSenseUtils::yearEffectSD()` of the out-of-fold
-#'   `model$yearTotals`), which `fireSense_burn` draws each year, with one z shared by ignitions, escapes and spread.
+#'   `model$yearTotals`), which `fireSense_burn` draws each year, with one z shared by ignitions, escapes and spread,
+#'   and `concentration` (`concentrationOf()`, logged by `concentrationMessage()`).
 buildModelsFitModels <- function(igOrEsc, sim) {
   data <- fitCovariates(igOrEsc, sim)
   ## `rescaleCovariates()` does not scale coreFraction, and it is in the unscaled data `digestOfData` hashes
@@ -374,7 +397,7 @@ buildModelsFitModels <- function(igOrEsc, sim) {
   modelHere <- buildModel(covariates = data$covariates,
                           type = igOrEsc, nFolds = nFolds,
                           dig = dataDigest(data),
-                          modelAlgorithm = Par$modelAlgorithm) |>
+                          modelAlgorithm = Par$modelAlgorithm, xgb = xgbSettingsOfParams(Par)) |>
     Cache(omitArgs = c("covariates"),
           .functionName = paste0("buildModel for ", igOrEsc),
           .cacheExtra = c(data$digestOfData, list(callees = buildModelCallees())),
@@ -384,12 +407,17 @@ buildModelsFitModels <- function(igOrEsc, sim) {
   finalNoPix <- nrow(data$covariates)     ## nrow(postSampleData) in eg above
   lambdaRescaleFactor <- finalNoPix/origNoPix
 
+  concentration <- modelHere$concentration # beside `yearEffects`, not among the boosters; absent in older fits
+  modelHere$concentration <- NULL
+  message(concentrationMessage(concentration, igOrEsc))
+
   modelList <- list(
     model = modelHere,
     rescales = data$ignitionRescalers,
     fittingRes = res(sim$ignitionFitRTM)[1],
     lambdaRescaleFactor = lambdaRescaleFactor,
-    yearSD = fireSenseUtils::yearEffectSD(modelHere$yearTotals$observed, modelHere$yearTotals$predicted))
+    yearSD = fireSenseUtils::yearEffectSD(modelHere$yearTotals$observed, modelHere$yearTotals$predicted),
+    concentration = concentration)
 
   class(modelList) <- igOrEscNames(igOrEsc, post = "Fit", case = "Title")
 
@@ -430,11 +458,13 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 #' @param dig Digest of the unscaled covariates, used to cache the creation of dummy variables.
 #' @param type `"ignition"` or `"escape"`; also the pattern that finds the response column.
 #' @param nFolds Number of folds.
-#' @return List of the `nFolds` xgboost models, named `Fold1`, ..., plus `rocs` from `rocPerFold()` and
+#' @param xgb Boosting settings, `xgbSettings()` (the module's `xgb*` parameters).
+#' @return List of the `nFolds` xgboost models, named `Fold1`, ..., plus `rocs` from `rocPerFold()`,
 #'   `yearTotals` from `outOfFoldYearTotals()`: out of year, from extra models fitted on `yearBlockedFolds()`
 #'   (not returned), or out of fold from the `cvFolds()` models with fewer than 2 years or when a year-blocked
-#'   fold would train without a positive.
-runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
+#'   fold would train without a positive, and `concentration`: `concentrationOf()` of the same out-of-year (or
+#'   out-of-fold) predictions and the response, with the rounds each fold model kept.
+runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5, xgb = xgbSettings()) {
   dat3Forxgboost <- dat
 
   # Add dummy variables for factor columns -- i.e., the random effects
@@ -487,7 +517,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
                                    response[wholeDataset] / weight[wholeDataset],
                                    valInd, # should be keepEval
                                    functionNameHelper("xgboost", type, kFold), c(dig, digValInd, type),
-                                   weight = weight[wholeDataset])
+                                   weight = weight[wholeDataset], xgb = xgb)
         # Predict probabilities
         valData <- dat3Forxgboost[valInd, ]
         pred2 <- predict(mPoisson, valData)
@@ -514,21 +544,28 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5) {
   rocs <- rocPerFold(mm, ignOrEscapeColName)
   aucs <- aucPerFold(rocs)
   print(meanRocMessage(aucs))
-  yearTotals <- outOfFoldYearTotals(yearOfRow, response, trainIndexK,
-                                    lapply(mm, function(m) m$valData$predPoisson))
+  folds <- trainIndexK
+  basis <- "out-of-fold"
+  heldOut <- lapply(mm, function(m) m$valData$predPoisson)
+  yearTotals <- outOfFoldYearTotals(yearOfRow, response, folds, heldOut)
   ## the yearSD comes from out-of-year totals: refit with whole years held out, when every fold can train
   yearFolds <- yearBlockedFolds(yearOfRow, nFolds)
   if (!is.null(yearFolds) && !any(foldsLackPositives(response, yearFolds))) {
+    folds <- yearFolds
+    basis <- "out-of-year"
     heldOut <- Map(fold = yearFolds, kFold = seq_along(yearFolds), f = function(fold, kFold) {
       m <- fitFoldXgboost(dat3ForxgboostNoIgn, response / weight, fold$keepEval,
                           functionNameHelper("xgboostYearBlocked", type, kFold),
-                          c(dig, .robustDigest(fold$keepEval), type), weight = weight)
+                          c(dig, .robustDigest(fold$keepEval), type), weight = weight, xgb = xgb)
       predict(m, dat3Forxgboost[fold$keepEval, ]) * weight[fold$keepEval]
     })
-    yearTotals <- outOfFoldYearTotals(yearOfRow, response, yearFolds, heldOut)
+    yearTotals <- outOfFoldYearTotals(yearOfRow, response, folds, heldOut)
   }
+  ## the same out-of-year (else out-of-fold) predictions, row by row, for the concentration diagnostic
   mm2 <- Map(m = mm, function(m) m$mod)
-  mm2 <- append(mm2, list(rocs = rocs, yearTotals = yearTotals))
+  concentration <- concentrationOf(response, outOfFoldPrediction(length(response), folds, heldOut), basis = basis)
+  concentration$rounds <- vapply(mm2, function(m) nrow(attr(m, "evaluation_log")), numeric(1), USE.NAMES = FALSE)
+  mm2 <- append(mm2, list(rocs = rocs, yearTotals = yearTotals, concentration = concentration))
 
   return(mm2)
 }
@@ -632,7 +669,8 @@ yearBlockedFolds <- function(year, nFolds) {
 #'
 #' Poisson objective (`fireSenseUtils::ignitionObjectiveTxt`), trained on the rows of `x` not in
 #' `evalSet`, which xgboost holds out for evaluation. Cached; xgboost objects do not save with `qs`,
-#' so `rds`.
+#' so `rds`. With early stopping (`xgb$early_stopping_rounds`) the number of rounds is first chosen on the
+#' held-out rows by `earlyStoppedRounds()` (also cached), and the model is fitted with that many.
 #'
 #' @param x Covariates (no response).
 #' @param y Response (label); `ignitions / weight` when the rows are weighted.
@@ -640,22 +678,51 @@ yearBlockedFolds <- function(year, nFolds) {
 #' @param functionName `.functionName` for `Cache()`.
 #' @param cacheExtra `.cacheExtra` for `Cache()`: digests of the data and of `evalSet`, and the type.
 #' @param weight Weight of each row of `x`, also for the held-out rows (`NULL`: all 1).
+#' @param xgb Boosting settings, `xgbSettings()`.
 #' @return An xgboost model.
-fitFoldXgboost <- function(x, y, evalSet, functionName, cacheExtra, weight = NULL) {
+fitFoldXgboost <- function(x, y, evalSet, functionName, cacheExtra, weight = NULL, xgb = xgbSettings()) {
+  nrounds <- xgb$nrounds
+  if (!is.null(xgb$early_stopping_rounds))
+    nrounds <- earlyStoppedRounds(x, y, evalSet, weight, xgb) |>
+      Cache(omitArgs = c("x", "y", "weight", "evalSet"),
+            .functionName = paste0(functionName, "_rounds"),
+            .cacheExtra = c(cacheExtra, list(xgb = xgb)),
+            cacheSaveFormat = "rds")
   xgboost(x = x, y = y, weights = weight,
           objective = fireSenseUtils::ignitionObjectiveTxt,
           nthread = fireSenseUtils::nThreads(),
           eval_set = evalSet,
           monitor_training = TRUE,
           verbosity = 0,
-          nrounds = 100,
-          max_depth = 2,
-          reg_lambda = 0.5,
-          learning_rate = 0.15
+          nrounds = nrounds,
+          max_depth = xgb$max_depth,
+          reg_lambda = xgb$reg_lambda,
+          learning_rate = xgb$learning_rate
   ) |> Cache(omitArgs = c("x", "y", "weights", "eval_set", "nthread"),
              .functionName = functionName,
              .cacheExtra = cacheExtra,
              cacheSaveFormat = "rds")
+}
+
+#' The number of boosting rounds that early stopping picks for one fold
+#'
+#' `xgboost()` takes `early_stopping_rounds` but does not pass it on (xgboost 3.2.1.1), so the rounds are chosen
+#' here with `xgb.train()`: boosting runs to `xgb$nrounds`, stopping once the Poisson loss of the held-out rows
+#' (`evalSet`) has not improved for `xgb$early_stopping_rounds` rounds. Training is deterministic, so
+#' `fitFoldXgboost()` refits with the best round as `nrounds` and gets that round's model.
+#'
+#' @inheritParams fitFoldXgboost
+#' @return The best round: the one with the lowest held-out Poisson loss (a number from 1 to `xgb$nrounds`).
+earlyStoppedRounds <- function(x, y, evalSet, weight = NULL, xgb = xgbSettings()) {
+  dm <- xgb.DMatrix(as.matrix(x), label = y, weight = weight)
+  trained <- xgb.train(
+    params = list(objective = fireSenseUtils::ignitionObjectiveTxt, max_depth = xgb$max_depth,
+                  learning_rate = xgb$learning_rate, reg_lambda = xgb$reg_lambda,
+                  nthread = fireSenseUtils::nThreads(), verbosity = 0),
+    data = xgb.slice.DMatrix(dm, setdiff(seq_len(nrow(x)), evalSet)),
+    nrounds = xgb$nrounds, evals = list(eval = xgb.slice.DMatrix(dm, evalSet)),
+    early_stopping_rounds = xgb$early_stopping_rounds, verbose = 0)
+  which.min(attributes(trained)$evaluation_log[[2]])
 }
 
 #' Message reporting the mean AUC across folds

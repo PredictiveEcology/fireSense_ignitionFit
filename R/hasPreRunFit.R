@@ -127,7 +127,9 @@ useExistingFitIsCompatible <- function(sim) {
 buildModelCallees <- function() {
   list(runXGBOOST = runXGBOOST, cvFolds = cvFolds, stopIfFoldsLackPositives = stopIfFoldsLackPositives,
        xgbFeatureNames = xgbFeatureNames, rocPerFold = rocPerFold, aucPerFold = aucPerFold,
-       outOfFoldYearTotals = outOfFoldYearTotals, yearBlockedFolds = yearBlockedFolds,
+       outOfFoldYearTotals = outOfFoldYearTotals, outOfFoldPrediction = outOfFoldPrediction,
+       yearBlockedFolds = yearBlockedFolds, xgbSettings = xgbSettings, earlyStoppedRounds = earlyStoppedRounds,
+       concentrationOf = concentrationOf, giniIndex = giniIndex,
        foldsLackPositives = foldsLackPositives, fitFoldXgboost = fitFoldXgboost, exposureOf = exposureOf,
        ignitionObjectiveTxt = fireSenseUtils::ignitionObjectiveTxt)
 }

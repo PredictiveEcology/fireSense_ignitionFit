@@ -8,7 +8,7 @@ test_that("runXGBOOST returns one model per fold, fitted on the covariates only"
   set.seed(42)
   m <- fitQuietly(data.table::copy(dat), dig = "test", type = "ignition", nFolds = 5)
 
-  expect_identical(names(m), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
+  expect_identical(names(m), c(paste0("Fold", 1:5), "rocs", "yearTotals", "concentration"))
   expect_identical(names(m$rocs), paste0("Fold", 1:5))
   for (fold in paste0("Fold", 1:5)) {
     ## pixelID, year and the response do not reach the model; the rest do, in alphabetical order
@@ -75,7 +75,7 @@ test_that("the number of folds", {
   dat <- scaleCovariates(makeIgnitionCovariates())
   set.seed(42)
   m3 <- fitQuietly(data.table::copy(dat), dig = "test", type = "ignition", nFolds = 3)
-  expect_identical(names(m3), c("Fold1", "Fold2", "Fold3", "rocs", "yearTotals"))
+  expect_identical(names(m3), c("Fold1", "Fold2", "Fold3", "rocs", "yearTotals", "concentration"))
   heldOut <- vapply(m3$rocs, function(r) length(r$response), numeric(1))
   expect_identical(sum(heldOut), 400)                  # 3 folds still cover every row once
 })
@@ -125,7 +125,7 @@ test_that("buildModel with xgboost fits runXGBOOST on integer responses", {
     res <- buildModel(covariates = dat, type = "ignition",
                       dig = "test", modelAlgorithm = "xgboost", nFolds = 4)
   )))
-  expect_identical(names(res), c(paste0("Fold", 1:4), "rocs", "yearTotals"))            # nFolds is passed on
+  expect_identical(names(res), c(paste0("Fold", 1:4), "rocs", "yearTotals", "concentration"))            # nFolds is passed on
   expect_equal(unname(aucPerFold(res$rocs)), rep(1, 4))
   expect_type(dat$ignitions, "integer")                                  # converted by reference
   expect_identical(sum(dat$ignitions), 83L)                              # 39 * 1 + 22 * 2
