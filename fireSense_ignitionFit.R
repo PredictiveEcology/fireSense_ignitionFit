@@ -214,7 +214,10 @@ Init <- function(sim) {
     if (inherits(sa, "SpatVector")) sa <- sf::st_as_sf(sa)
     sim$ignitionFitPreRun <-
       if (identical(P(sim)$ignitionFitFilename, "latest") && !length(ignitionFitYears(sim))) {
-        ignitionLedgerLatestRows(sim)   # no fit data to name the file from
+        ## no fit data to name the file from: the newest row of this ELF over the ledger files, as fireSense_ELFs reads it
+        fireSenseUtils::latestIgnitionFits(P(sim)$ignitionFitGoogleDriveFolder, destinationPath = inputPath(sim),
+                                           polygonIDs = as.character(sim$.ELFind),
+                                           suffix = SpaDES.core::paramCheckOtherMods(sim, "fitFileSuffix"))
       } else {
         ignitionLedgerCacheGeo(sim, domain = sa, action = "nothing", useCache = FALSE, bufferOK = TRUE)
       }
