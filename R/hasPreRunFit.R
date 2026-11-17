@@ -62,7 +62,8 @@ xgbFeatureNames <- function(cols) {
 #' A fit stored in the ledger by an earlier run records the features it was trained on (its
 #' xgboost boosters' `variable.names()`). If the covariates have since changed (e.g. non-forest
 #' land-cover groups merged into one), `predict()` fails on the missing columns. The stored fit is
-#' compatible when all its features are among the current covariate columns and every fold's booster
+#' compatible when all its features are among the current covariate columns (a species covariate the current
+#' vegetation lacks counts as present, as 0: `fireSenseUtils::absentSpeciesCols()`) and every fold's booster
 #' was fitted with `fireSenseUtils::ignitionObjectiveTxt`. Only xgboost fits
 #' exist (`buildModel()` stops for any other algorithm). Messages name what is missing and extra.
 #'
@@ -84,9 +85,10 @@ storedFitIsCompatible <- function(fitted, covariates, polygonID = "", type = "ig
             ". Fitting again.")
     return(FALSE)
   }
-  stored <- unique(unlist(lapply(boosters, stats::variable.names)))
+  stored <- fireSenseUtils::foldFeatureNames(fitted)
   current <- xgbFeatureNames(colnames(covariates))
-  missingNow <- setdiff(stored, current)
+  ## a species the vegetation lacks has no biomass: fireSense_ignitionPredict adds its column as 0
+  missingNow <- setdiff(stored, c(current, fireSenseUtils::absentSpeciesCols(stored, current)))
   if (length(missingNow)) {
     message("fireSense_ignitionFit: the stored ", type, " model for polygon ", polygonID,
             " uses features absent from the current covariates (", paste(missingNow, collapse = ", "),

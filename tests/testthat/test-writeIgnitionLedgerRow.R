@@ -236,11 +236,11 @@ test_that("stripFittedForLedger drops rocs, shrinks the object, and predict() is
   expect_null(stripFittedForLedger(NULL))
 })
 
-## A covariate set whose `Pice_mar` column has been renamed, as when land-cover groups are merged
-## under a new name: the stored fit's features are no longer all among the covariates.
+## A covariate set whose `CMDsm` column has been renamed, as when the climate variable changes: the stored
+## fit's features are no longer all among the covariates, and a missing climate variable cannot be set to 0.
 renamedCovariates <- function(escapes = FALSE) {
   dt <- makeIgnitionCovariates(escapes = escapes)
-  data.table::setnames(dt, "Pice_mar", "Pice_new")
+  data.table::setnames(dt, "CMDsm", "CMDsp")
   dt
 }
 
@@ -257,7 +257,7 @@ test_that("storedFitIsCompatible: all stored features present -> TRUE; one absen
     expect_true(storedFitIsCompatible(fitted, covs2, "6.1.1", type))
     expect_message(
       ok <- storedFitIsCompatible(fitted, renamedCovariates(type == "escape"), "6.1.1", type),
-      "6.1.1.*Pice_mar.*Pice_new")
+      "6.1.1.*CMDsm.*CMDsp")
     expect_false(ok)
   }
   expect_false(storedFitIsCompatible(NULL, makeIgnitionCovariates(), "6.1.1", "ignition"))
@@ -275,11 +275,11 @@ test_that("a stored ledger fit whose features are missing from the covariates is
                                            fireSense_escapeCovariates = renamedCovariates(escapes = TRUE)))
   for (fitted in list(sim2$fireSense_IgnitionFitted, sim2$fireSense_EscapeFitted))
     expect_setequal(stats::variable.names(fitted$modelList$model$Fold1),
-                    c("CMDsm", "lightning", "Pice_new", "youngAge"))
+                    c("CMDsp", "lightning", "Pice_mar", "youngAge"))
   ## the new fit replaced the polygon's row
   ledger <- readRDS(file.path(paths$inputPath, ledgerName))
   expect_identical(as.character(ledger$polygonID), "6.1.1")
-  expect_true("Pice_new" %in% stats::variable.names(ledger$fireSense_IgnitionFitted[[1]]$modelList$model$Fold1))
+  expect_true("CMDsp" %in% stats::variable.names(ledger$fireSense_IgnitionFitted[[1]]$modelList$model$Fold1))
 })
 
 ## Real small boosters of a given objective, in the shape of a stored ledger fit.
@@ -303,6 +303,16 @@ test_that("a stored fit made with another objective (reg:tweedie) is not reused,
   mixed <- storedFitWith("count:poisson")
   mixed$modelList$model$Fold2 <- storedFitWith("reg:tweedie")$modelList$model$Fold1
   expect_false(suppressMessages(storedFitIsCompatible(mixed, covs, "6.1.1", "ignition")))
+})
+
+test_that("a stored fit with a species column the current covariates lack is compatible (the species is absent: 0)", {
+  covs <- makeIgnitionCovariates()
+  data.table::set(covs, NULL, "Pice_mar", NULL)
+  expect_true(storedFitIsCompatible(storedFitWith("count:poisson"), covs, "6.1.1", "ignition"))
+  ## another feature missing as well (climate): still refused
+  data.table::set(covs, NULL, "CMDsm", NULL)
+  expect_message(ok <- storedFitIsCompatible(storedFitWith("count:poisson"), covs, "6.1.1", "ignition"), "CMDsm")
+  expect_false(ok)
 })
 
 test_that("writeIgnitionLedgerRow refuses a model fitted with another objective", {
