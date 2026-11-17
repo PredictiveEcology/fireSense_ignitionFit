@@ -117,7 +117,10 @@ defineModule(sim, list(
     createsOutput("fireSense_EscapeFitted", "fireSense_EscapeFit",
                   desc = paste("List of `modelList` and `scaleData`, as `fireSense_IgnitionFitted`,",
                                "with `modelList` of class `fireSense_EscapeFit` (its `yearEffects` multiply the expected",
-                               "escapes of an ignited pixel). Either freshly fitted, or, when",
+                               "escapes of an ignited pixel; its `escapeCalibration`, `c`, multiplies them first: the",
+                               "factor at which the ignition model's own ignitions expect the observed escapes,",
+                               "`fittedYearEffects()`; absent in fits stored before it existed, which means 1; only with",
+                               "both processes fitted). Either freshly fitted, or, when",
                                "`studyArea` matches a row of the shared ledger, read from it.")),
     createsOutput("fireSense_IgnitionFitted", "fireSense_IgnitionFit",
                   desc = paste("List of `modelList` (class `fireSense_IgnitionFit`: `model`, the per-fold xgboost models",
@@ -337,7 +340,8 @@ fitCovariates <- function(igOrEsc, sim, modelAlgorithm = Par$modelAlgorithm, res
 #'
 #' Predicts every pixel and year of the fit data with each fit (`fireSenseUtils::foldMeanPrediction()`) and
 #' stores `fittedYearEffects()` as `modelList$yearEffects` of `sim$fireSense_IgnitionFitted` and
-#' `sim$fireSense_EscapeFitted`, for `fireSense_ignitionPredict` to pass to `fireSense_burn`.
+#' `sim$fireSense_EscapeFitted`, for `fireSense_ignitionPredict` to pass to `fireSense_burn`, and its
+#' `escapeCalibration` as `modelList$escapeCalibration` of `sim$fireSense_EscapeFitted`.
 #'
 #' @param sim A `simList` with both fits.
 #' @return `sim`, invisibly.
@@ -352,6 +356,7 @@ addFittedYearEffects <- function(sim) {
                            one("escape", sim$fireSense_EscapeFitted, fireSenseUtils::escapesTxt))
   sim$fireSense_IgnitionFitted$modelList$yearEffects <- eff$ignition
   sim$fireSense_EscapeFitted$modelList$yearEffects <- eff$escape
+  sim$fireSense_EscapeFitted$modelList$escapeCalibration <- eff$escapeCalibration
   invisible(sim)
 }
 

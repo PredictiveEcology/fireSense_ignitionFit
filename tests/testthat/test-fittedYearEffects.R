@@ -28,7 +28,7 @@ drawExpects <- function(d, eff) {
   uE <- eff$escape$multiplier[match(d$esc$year, eff$escape$year)]
   lam <- d$ign$mean * uI
   list(ignitions = as.numeric(tapply(d$ign$weight * lam, d$ign$year, sum)),
-       escapes = as.numeric(tapply(d$ign$weight * lam * fireSenseUtils::escapeProbPerIgnition(uE * d$esc$mean, lam),
+       escapes = as.numeric(tapply(d$ign$weight * lam * fireSenseUtils::escapeProbPerIgnition(uE * eff$escapeCalibration * d$esc$mean, lam),
                                    d$esc$year, sum)))
 }
 
@@ -47,7 +47,8 @@ test_that("with the fitted effects the draw expects each year's target, close to
   expect_equal(got$ignitions, d$totI, tolerance = 0.01)
   expect_equal(got$escapes, d$totE, tolerance = 0.01)
   expect_equal(eff$ignition$multiplier, c(2, 0.5, 1.3), tolerance = 0.01)
-  expect_equal(eff$escape$multiplier, c(0.6, 1.5, 1), tolerance = 0.01)
+  ## the multipliers are the true effects relative to the calibration (the in-sample total of escapes is not the models')
+  expect_equal(eff$escape$multiplier * eff$escapeCalibration, c(0.6, 1.5, 1), tolerance = 0.01)
   ## the prior sd is the in-sample spread of the totals around the predictions
   expect_identical(eff$ignition$priorSD, rep(fireSenseUtils::yearEffectSD(d$totI, eff$ignition$expected), 3))
 })
@@ -103,4 +104,58 @@ test_that("the posterior is stored: a rep's multiplier * qgamma(p, shape, shape)
   ## no uncertainty where the multiplier is fixed at 1
   d0 <- syntheticYears(uIgn = c(1, 1, 1), uEsc = c(1, 1, 1))
   expect_true(all(is.na(fittedYearEffects(d0$ign, d0$esc)$ignition$shape)))
+})
+
+## The models' ignitions are spread evenly over the pixels, the observed ones sit in the pixels where an ignition escapes
+## more often: the escape fit, on observed ignitions only, cannot see that
+locationData <- function(obsEscapes = 0.3) {
+  nPix <- 2000
+  years <- 2001:2003
+  i <- rep(seq_len(nPix), 3)
+  high <- i %% 2 == 0
+  ign <- data.table::data.table(pixelID = i, year = rep(years, each = nPix), mean = 0.5, weight = 1,
+                                observed = as.numeric(high))
+  esc <- data.table::data.table(pixelID = i, year = ign$year, mean = ifelse(high, 0.3, 0.1),
+                                observed = ifelse(high, obsEscapes, 0))
+  list(ign = ign, esc = esc)
+}
+
+test_that("ignitions that fall where escapes are rare give a calibration above 1, and the calibrated draw expects the observed escapes", {
+  d <- locationData()
+  eff <- fittedYearEffects(d$ign, d$esc)
+  ## uncalibrated, the models' ignitions expect sum(w * lambda * q) of the observed escapes
+  uncal <- sum(d$ign$weight * d$ign$mean * fireSenseUtils::escapeProbPerIgnition(d$esc$mean, d$ign$mean))
+  expect_lt(uncal, sum(d$esc$observed))
+  expect_gt(eff$escapeCalibration, 1)
+  expect_equal(eff$escapeCalibration, sum(d$esc$observed) / uncal, tolerance = 1e-8)
+  ## the calibrated draw (fireSense_ignitionPredict multiplies the escape mean by it) reproduces the observed escapes
+  cal <- sum(d$ign$weight * d$ign$mean *
+               fireSenseUtils::escapeProbPerIgnition(eff$escapeCalibration * d$esc$mean, d$ign$mean))
+  expect_equal(cal, sum(d$esc$observed), tolerance = 1e-8)
+})
+
+test_that("the year multipliers of the escapes centre on 1 with the calibration, and not without it", {
+  d <- locationData()
+  eff <- fittedYearEffects(d$ign, d$esc)
+  ## this year-balanced toy has no year effect: the multipliers are 1 whatever c
+  expect_equal(eff$escape$multiplier, rep(1, 3), tolerance = 1e-6)
+  ## expected totals of the escapes are the calibrated ones
+  expect_equal(eff$escape$expected, eff$escape$observed, tolerance = 1e-8)
+  ## a year with twice the escapes is above 1 and the others below it, relative to the calibrated total
+  data.table::set(d$esc, which(d$esc$year == 2002 & d$esc$observed > 0), "observed", 0.6)
+  eff2 <- fittedYearEffects(d$ign, d$esc)
+  expect_gt(eff2$escape$multiplier[2], 1)
+  expect_lt(eff2$escape$multiplier[1], 1)
+})
+
+test_that("a fit with no escape gives a calibration of 1, and the cap is respected", {
+  d <- syntheticYears(uIgn = c(1, 1, 1), uEsc = c(1, 1, 1))
+  expect_equal(fittedYearEffects(d$ign, d$esc)$escapeCalibration, 1, tolerance = 0.01)
+  ## more escapes observed than the ignitions can give: c is where every ignition escapes, no higher
+  d <- locationData(obsEscapes = 5)
+  eff <- fittedYearEffects(d$ign, d$esc)
+  q <- fireSenseUtils::escapeProbPerIgnition(eff$escapeCalibration * d$esc$mean, d$ign$mean)
+  expect_lte(max(q), 1)
+  expect_equal(max(q), 1)
+  expect_lte(sum(d$ign$weight * d$ign$mean * q), sum(d$ign$weight * d$ign$mean))
 })

@@ -42,7 +42,8 @@ test_that("init schedules checkData then run, and both processes are fitted and 
     fitted <- sim[[nm]]
     expect_identical(names(fitted), c("modelList", "scaleData"))
     ml <- fitted$modelList
-    expect_identical(names(ml), c("model", "rescales", "fittingRes", "lambdaRescaleFactor", "yearSD", "yearEffects"))
+    expect_identical(names(ml), c("model", "rescales", "fittingRes", "lambdaRescaleFactor", "yearSD", "yearEffects",
+                                  if (nm == "fireSense_EscapeFitted") "escapeCalibration"))
     expect_identical(names(ml$model), c(paste0("Fold", 1:5), "rocs", "yearTotals"))
     ## the year effect's sd, from the out-of-fold yearly totals of the 4 synthetic years
     expect_identical(nrow(ml$model$yearTotals), 4L)
@@ -165,6 +166,11 @@ test_that("a fit of both processes stores its year effects; a fit of one does no
   raw <- sim$fireSense_ignitionCovariates
   expect_equal(ye$expected, as.numeric(tapply(lam, raw$year, sum)))
   expect_equal(ye$observed, as.numeric(tapply(raw$ignitions, raw$year, sum)))
+
+  ## the escape fit's calibration is the one fittedYearEffects() solved, and only the escape fit has it
+  expect_true(is.finite(sim$fireSense_EscapeFitted$modelList$escapeCalibration) &&
+                sim$fireSense_EscapeFitted$modelList$escapeCalibration > 0)
+  expect_null(sim$fireSense_IgnitionFitted$modelList$escapeCalibration)
 
   one <- runModule(params = list(.plots = NA, whichProcessesToFit = "ignition"))
   expect_null(one$fireSense_IgnitionFitted$modelList$yearEffects)

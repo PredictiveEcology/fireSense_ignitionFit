@@ -20,6 +20,17 @@
 #' solved after ignitions, with `u_I` applied, and cannot exceed the ignitions (the cap in
 #' `escapeProbPerIgnition()`): a target above that gives the multiplier at which every ignition escapes.
 #'
+#' The escape expectation is calibrated: the escape model is fitted on the observed ignitions, but a draw places
+#' ignitions where the ignition model puts them, which is not where the observed ignitions fell, and the escapes
+#' expected there are 4% to 7% off the observed ones (either sign, by ELF). `escapeCalibration` is the `c` at which
+#' the ignition model's own ignitions (`u_I` 1, no year effect, as a forecast draws them) expect the observed escapes
+#' of every fit row, `sum(w * lambda * escapeProbPerIgnition(c * e, lambda))`, solved through the cap like the
+#' year multipliers. `fireSense_ignitionPredict` multiplies the escape mean by it, so a draw's `q` is
+#' `escapeProbPerIgnition(c * e, lambda)`: `c` acts before the cap, and where the cap binds `q` stays 1. The
+#' year totals, `priorSD` and `u_E` use this calibrated expectation, so `u_E` and `c` do not count the same bias
+#' twice and the `u_E` centre on 1. The fit's `yearSD` (out-of-year totals at the observed ignitions, `buildModelsFitModels()`)
+#' has no placement bias to calibrate and is unchanged.
+#'
 #' The posterior is kept, not only its mean, so a hindcast's reps carry the uncertainty of the year's effect:
 #' `shape = a + O_y` is stored, and `fireSense_burn` multiplies each rep-year by `multiplier * w`, with
 #' `w ~ Gamma(shape, rate = shape)` (mean 1; one uniform per rep-year and process, `qgamma(p, shape, shape)`).
@@ -33,23 +44,31 @@
 #'   the core, `exposureOf()`).
 #' @param escapes `data.table` of the escape fit data: `pixelID`, `year`, `observed` (escapes) and `mean`
 #'   (the predicted escapes if ignited), for the same pixels and years.
-#' @return A list of two `data.frame`s, `ignition` and `escape`, one row per year: `year`, `observed` and
-#'   `expected` (the core totals with no effect), `priorSD` (`s`), `multiplier` (the posterior mean, solved through
-#'   the cap for escapes) and `shape` (of the posterior, `a + observed`; `NA`: no uncertainty).
+#' @return A list of `ignition` and `escape`, two `data.frame`s with one row per year: `year`, `observed` and
+#'   `expected` (the core totals with no effect; the escapes calibrated), `priorSD` (`s`), `multiplier` (the posterior
+#'   mean, solved through the cap for escapes; of the calibrated escape mean) and `shape` (of the posterior,
+#'   `a + observed`; `NA`: no uncertainty), and `escapeCalibration`, the number `c` above.
 fittedYearEffects <- function(ignitions, escapes) {
-  ign <- yearPosterior(ignitions$year, ignitions$observed, ignitions$weight * ignitions$mean)
   rows <- match(paste(escapes$pixelID, escapes$year), paste(ignitions$pixelID, ignitions$year))
   if (anyNA(rows))
     stop("fittedYearEffects(): ", sum(is.na(rows)), " escape rows have no ignition row of the same pixel and year")
+  ign <- yearPosterior(ignitions$year, ignitions$observed, ignitions$weight * ignitions$mean)
   lambda <- ignitions$mean[rows] * ign$multiplier[match(escapes$year, ign$year)]
   w <- ignitions$weight[rows]
-  coreEscapes <- function(u, i) sum(w[i] * lambda[i] * fireSenseUtils::escapeProbPerIgnition(u * escapes$mean[i], lambda[i]))
-  byYear <- split(seq_along(rows), escapes$year)
+  ## the core's expected escapes of rows `i`: ignitions of mean `lam` (weight `w`), each escaping with the chance
+  ## `escapeProbPerIgnition()` of `u` times its escape mean
+  expected <- function(u, i, lam) sum(w[i] * lam[i] * fireSenseUtils::escapeProbPerIgnition(u * escapes$mean[i], lam[i]))
+  ## the escape calibration: the escape mean is scaled by the `c` at which the models' own ignitions (no year effect)
+  ## expect the observed escapes; solved through the cap, so it holds where an ignition cannot escape twice
+  every <- seq_along(rows)
+  calibration <- solveMultiplier(function(u) expected(u, every, ignitions$mean[rows]), sum(escapes$observed))
+  coreEscapes <- function(u, i) expected(calibration * u, i, lambda)
+  byYear <- split(every, escapes$year)
   esc <- yearPosterior(as.numeric(names(byYear)), vapply(byYear, function(i) sum(escapes$observed[i]), numeric(1)),
                        vapply(byYear, function(i) coreEscapes(1, i), numeric(1)), summed = TRUE)
   esc$multiplier <- mapply(function(i, target) solveMultiplier(function(u) coreEscapes(u, i), target),
                            byYear, esc$expected * esc$multiplier, USE.NAMES = FALSE)
-  list(ignition = ign, escape = esc)
+  list(ignition = ign, escape = esc, escapeCalibration = calibration)
 }
 
 ## Per year: observed and expected totals, the prior sd and the posterior-mean multiplier (see fittedYearEffects()).
