@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9012</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9013</span>
       </span>
     </div>
 
@@ -61,7 +61,7 @@
       </tr><tr><td>
           <p><code><a href="addFittedYearEffects.html">addFittedYearEffects()</a></code> </p>
         </td>
-        <td><p>Add the fitted year effects to the ignition and escape fits</p></td>
+        <td><p>Add the fitted year effects and the chained-escape factor to the ignition and escape fits</p></td>
       </tr><tr><td>
           <p><code><a href="aucPerFold.html">aucPerFold()</a></code> </p>
         </td>
@@ -79,6 +79,22 @@
         </td>
         <td><p>Prepare covariates, fit one process, and plot it</p></td>
       </tr><tr><td>
+          <p><code><a href="chainMessage.html">chainMessage()</a></code> </p>
+        </td>
+        <td><p>One line of the log for the chained-escape factor</p></td>
+      </tr><tr><td>
+          <p><code><a href="chainedEscapeFactor.html">chainedEscapeFactor()</a></code> </p>
+        </td>
+        <td><p>The factor by which the escapes that follow model-placed ignitions differ from the observed ones</p></td>
+      </tr><tr><td>
+          <p><code><a href="concentrationMessage.html">concentrationMessage()</a></code> </p>
+        </td>
+        <td><p>One line of the log for a fit's concentration</p></td>
+      </tr><tr><td>
+          <p><code><a href="concentrationOf.html">concentrationOf()</a></code> </p>
+        </td>
+        <td><p>How concentrated the predicted events are, against the observed ones</p></td>
+      </tr><tr><td>
           <p><code><a href="cvFolds.html">cvFolds()</a></code> </p>
         </td>
         <td><p>Cross-validation folds for runXGBOOST(), stratified on whether each row is positive.</p></td>
@@ -94,6 +110,10 @@
           <p><code><a href="dot-inputObjects.html">.inputObjects()</a></code> </p>
         </td>
         <td><p>Default inputs</p></td>
+      </tr><tr><td>
+          <p><code><a href="earlyStoppedRounds.html">earlyStoppedRounds()</a></code> </p>
+        </td>
+        <td><p>The number of boosting rounds that early stopping picks for one fold</p></td>
       </tr><tr><td>
           <p><code><a href="exposureOf.html">exposureOf()</a></code> </p>
         </td>
@@ -147,9 +167,17 @@
         </td>
         <td><p>The ledger row for the polygon this run fits</p></td>
       </tr><tr><td>
+          <p><code><a href="matchedIgnitionRows.html">matchedIgnitionRows()</a></code> </p>
+        </td>
+        <td><p>The rows of the ignition table that each row of the escape table is the pixel-year of</p></td>
+      </tr><tr><td>
           <p><code><a href="meanRocMessage.html">meanRocMessage()</a></code> </p>
         </td>
         <td><p>Message reporting the mean AUC across folds</p></td>
+      </tr><tr><td>
+          <p><code><a href="outOfFoldPrediction.html">outOfFoldPrediction()</a></code> </p>
+        </td>
+        <td><p>The out-of-fold prediction of every row</p></td>
       </tr><tr><td>
           <p><code><a href="outOfFoldYearTotals.html">outOfFoldYearTotals()</a></code> </p>
         </td>
@@ -198,6 +226,14 @@
           <p><code><a href="xgbFeatureNames.html">xgbFeatureNames()</a></code> </p>
         </td>
         <td><p>Names of the features <code><a href="../reference/runXGBOOST.html">runXGBOOST()</a></code> gives the model</p></td>
+      </tr><tr><td>
+          <p><code><a href="xgbSettings.html">xgbSettings()</a></code> </p>
+        </td>
+        <td><p>The settings of the xgboost fits</p></td>
+      </tr><tr><td>
+          <p><code><a href="xgbSettingsOfParams.html">xgbSettingsOfParams()</a></code> </p>
+        </td>
+        <td><p>The <code><a href="../reference/xgbSettings.html">xgbSettings()</a></code> of the module's parameters</p></td>
       </tr><tr><td>
           <p><code><a href="yearBlockedFolds.html">yearBlockedFolds()</a></code> </p>
         </td>

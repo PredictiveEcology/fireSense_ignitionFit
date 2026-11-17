@@ -32,7 +32,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9012</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9013</span>
       </span>
     </div>
 
@@ -624,7 +624,7 @@ fireSense_EscapeFitted
 fireSense_EscapeFit
 </td>
 <td style="text-align:left;">
-List of <code>modelList</code> and <code>scaleData</code>, as <code>fireSense_IgnitionFitted</code>, with <code>modelList</code> of class <code>fireSense_EscapeFit</code>. Either freshly fitted, or, when <code>studyArea</code> matches a row of the shared ledger, read from it.
+List of <code>modelList</code> and <code>scaleData</code>, as <code>fireSense_IgnitionFitted</code>, with <code>modelList</code> of class <code>fireSense_EscapeFit</code> (its <code>yearEffects</code> multiply the expected escapes of an ignited pixel). Either freshly fitted, or, when <code>studyArea</code> matches a row of the shared ledger, read from it.
 </td>
 </tr>
 <tr>
@@ -635,7 +635,7 @@ fireSense_IgnitionFitted
 fireSense_IgnitionFit
 </td>
 <td style="text-align:left;">
-List of <code>modelList</code> (class <code>fireSense_IgnitionFit</code>: <code>model</code>, the per-fold xgboost models and their ROC curves and out-of-fold <code>yearTotals</code>, <code>fittingRes</code>, <code>lambdaRescaleFactor</code>, <code>rescales</code>, <code>yearSD</code>: the sd of the year effect that <code>fireSense_burn</code> draws; absent in fits stored before it existed, which means 0) and <code>scaleData</code> (centre and scale used to standardise the covariates). Either freshly fitted, or, when <code>studyArea</code> matches a row of the shared ledger, read from it.
+List of <code>modelList</code> (class <code>fireSense_IgnitionFit</code>: <code>model</code>, the per-fold xgboost models and their ROC curves and out-of-fold <code>yearTotals</code>, <code>fittingRes</code>, <code>lambdaRescaleFactor</code>, <code>rescales</code>, <code>yearSD</code>: the sd of the year effect that <code>fireSense_burn</code> draws; absent in fits stored before it existed, which means 0; and, when both processes are fitted, <code>yearEffects</code>: the fitted multiplier of each fit year (<code><a href="reference/fittedYearEffects.html">fittedYearEffects()</a></code>), which a hindcast of that year may use instead of a draw, <code>fireSense_burn</code>’s <code>yearEffects = "fitted"</code>; absent in older fits) and <code>scaleData</code> (centre and scale used to standardise the covariates). Either freshly fitted, or, when <code>studyArea</code> matches a row of the shared ledger, read from it.
 </td>
 </tr>
 <tr>

@@ -14,10 +14,15 @@
 <url><loc>/reference/buildModel.html</loc></url>
 <url><loc>/reference/buildModelCallees.html</loc></url>
 <url><loc>/reference/buildModelsFitModels.html</loc></url>
+<url><loc>/reference/chainMessage.html</loc></url>
+<url><loc>/reference/chainedEscapeFactor.html</loc></url>
+<url><loc>/reference/concentrationMessage.html</loc></url>
+<url><loc>/reference/concentrationOf.html</loc></url>
 <url><loc>/reference/cvFolds.html</loc></url>
 <url><loc>/reference/dataDigest.html</loc></url>
 <url><loc>/reference/doEvent.fireSense_ignitionFit.html</loc></url>
 <url><loc>/reference/dot-inputObjects.html</loc></url>
+<url><loc>/reference/earlyStoppedRounds.html</loc></url>
 <url><loc>/reference/exposureOf.html</loc></url>
 <url><loc>/reference/fitCovariates.html</loc></url>
 <url><loc>/reference/fitFoldXgboost.html</loc></url>
@@ -32,7 +37,9 @@
 <url><loc>/reference/ignitionLedgerWriteFile.html</loc></url>
 <url><loc>/reference/index.html</loc></url>
 <url><loc>/reference/ledgerRowForThisPolygon.html</loc></url>
+<url><loc>/reference/matchedIgnitionRows.html</loc></url>
 <url><loc>/reference/meanRocMessage.html</loc></url>
+<url><loc>/reference/outOfFoldPrediction.html</loc></url>
 <url><loc>/reference/outOfFoldYearTotals.html</loc></url>
 <url><loc>/reference/plotPredictions.html</loc></url>
 <url><loc>/reference/rocPerFold.html</loc></url>
@@ -45,6 +52,8 @@
 <url><loc>/reference/useExistingIgnitionFit.html</loc></url>
 <url><loc>/reference/writeIgnitionLedgerRow.html</loc></url>
 <url><loc>/reference/xgbFeatureNames.html</loc></url>
+<url><loc>/reference/xgbSettings.html</loc></url>
+<url><loc>/reference/xgbSettingsOfParams.html</loc></url>
 <url><loc>/reference/yearBlockedFolds.html</loc></url>
 </urlset>
 

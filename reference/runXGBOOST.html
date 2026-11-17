@@ -20,7 +20,7 @@ caching works."><!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/l
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9012</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9013</span>
       </span>
     </div>
 
@@ -63,7 +63,7 @@ caching works.</p>
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">runXGBOOST</span><span class="op">(</span><span class="va">dat</span>, <span class="va">dig</span>, type <span class="op">=</span> <span class="st">"ignition"</span>, nFolds <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">runXGBOOST</span><span class="op">(</span><span class="va">dat</span>, <span class="va">dig</span>, type <span class="op">=</span> <span class="st">"ignition"</span>, nFolds <span class="op">=</span> <span class="fl">5</span>, xgb <span class="op">=</span> <span class="fu"><a href="xgbSettings.html">xgbSettings</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -89,13 +89,20 @@ in <code>valData</code> and <code>yearTotals</code> are expected counts, the mod
 <dt id="arg-nfolds">nFolds<a class="anchor" aria-label="anchor" href="#arg-nfolds"></a></dt>
 <dd><p>Number of folds.</p></dd>
 
+
+<dt id="arg-xgb">xgb<a class="anchor" aria-label="anchor" href="#arg-xgb"></a></dt>
+<dd><p>Boosting settings, <code><a href="xgbSettings.html">xgbSettings()</a></code> (the module's <code>xgb*</code> parameters).</p></dd>
+
 </dl></div>
     <div id="value">
     <h2>Value</h2>
-    <p>List of the <code>nFolds</code> xgboost models, named <code>Fold1</code>, ..., plus <code>rocs</code> from <code><a href="rocPerFold.html">rocPerFold()</a></code> and
+    <p>List of the <code>nFolds</code> xgboost models, named <code>Fold1</code>, ..., plus <code>rocs</code> from <code><a href="rocPerFold.html">rocPerFold()</a></code>,
 <code>yearTotals</code> from <code><a href="outOfFoldYearTotals.html">outOfFoldYearTotals()</a></code>: out of year, from extra models fitted on <code><a href="yearBlockedFolds.html">yearBlockedFolds()</a></code>
 (not returned), or out of fold from the <code><a href="cvFolds.html">cvFolds()</a></code> models with fewer than 2 years or when a year-blocked
-fold would train without a positive.</p>
+fold would train without a positive, and <code>concentration</code>: <code><a href="concentrationOf.html">concentrationOf()</a></code> of the same out-of-year (or
+out-of-fold) predictions and the response, with the rounds each fold model kept. With <code>xgbEarlyStopping</code> the
+held-out rows of a fold also chose its rounds (<code><a href="earlyStoppedRounds.html">earlyStoppedRounds()</a></code>), so these out-of-year (out-of-fold) lift,
+Gini index and deviance are slightly optimistic.</p>
     </div>
 
   </div>

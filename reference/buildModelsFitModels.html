@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9012</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9013</span>
       </span>
     </div>
 
@@ -80,7 +80,8 @@
 <code>model</code> (from <code><a href="buildModel.html">buildModel()</a></code>), <code>rescales</code>, <code>fittingRes</code> (resolution of <code>ignitionFitRTM</code>),
 <code>lambdaRescaleFactor</code> (rows of covariates / non-NA cells of <code>ignitionFitRTM</code>) and <code>yearSD</code>, the sd
 of the year effect on the predicted mean (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/yearEffect.html" class="external-link">fireSenseUtils::yearEffectSD()</a></code> of the out-of-fold
-<code>model$yearTotals</code>), which <code>fireSense_burn</code> draws each year, with one z shared by ignitions, escapes and spread.</p>
+<code>model$yearTotals</code>), which <code>fireSense_burn</code> draws each year, with one z shared by ignitions, escapes and spread,
+and <code>concentration</code> (<code><a href="concentrationOf.html">concentrationOf()</a></code>, logged by <code><a href="concentrationMessage.html">concentrationMessage()</a></code>).</p>
     </div>
 
   </div>
