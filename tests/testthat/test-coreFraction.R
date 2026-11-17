@@ -80,7 +80,7 @@ test_that("without coreFraction the fit is the one it was: every weight is 1", {
 })
 
 test_that("coreFraction is not a feature of the stored-fit check or the plots", {
-  expect_identical(xgbFeatureNames(c("pixelID", "year", "ignitions", "x", "coreFraction", "escapes", "z")), c("x", "z"))
+  expect_identical(fireSenseUtils::xgbFeatureNames(c("pixelID", "year", "ignitions", "x", "coreFraction", "escapes", "z")), c("x", "z"))
   dat <- makeCoreFractionCovariates(nPix = 200, nYr = 2)
   data.table::set(dat, NULL, "u", dat$x * dat$z)
   models <- list(Fold1 = stats::lm(ignitions ~ x + z + u, data = dat))

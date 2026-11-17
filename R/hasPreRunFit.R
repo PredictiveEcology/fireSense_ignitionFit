@@ -43,64 +43,34 @@ ledgerRowForThisPolygon <- function(sim) {
                                 as.character(sim$.ELFind)[1])[1], ]
 }
 
-#' Names of the features `runXGBOOST()` gives the model
-#'
-#' Every column except `pixelID`, `year`, `coreFraction`, `yearChar*` and the responses, in alphabetical order.
-#' `runXGBOOST()` and [storedFitIsCompatible()] both use it, so they cannot disagree.
-#'
-#' @param cols Character vector of the column names of the fit data.
-#' @return Character vector.
-xgbFeatureNames <- function(cols) {
-  cols <- setdiff(cols, c("pixelID", "year", fireSenseUtils::coreFractionTxt))
-  cols <- grep("yearChar", cols, invert = TRUE, value = TRUE)
-  sort(grep(paste0(fireSenseUtils::ignitionsTxt, "|", fireSenseUtils::escapesTxt), cols,
-            value = TRUE, invert = TRUE))
-}
-
 #' Can a stored fit predict with the covariates this run would fit with?
 #'
 #' A fit stored in the ledger by an earlier run records the features it was trained on (its
 #' xgboost boosters' `variable.names()`). If the covariates have since changed (e.g. non-forest
 #' land-cover groups merged into one), `predict()` fails on the missing columns. The stored fit is
 #' compatible when all its features are among the current covariate columns and every fold's booster
-#' was fitted with `fireSenseUtils::ignitionObjectiveTxt`. Only xgboost fits
-#' exist (`buildModel()` stops for any other algorithm). Messages name what is missing and extra.
+#' was fitted with `fireSenseUtils::ignitionObjectiveTxt` (`fireSenseUtils::storedFitProblem()`, which
+#' fireSense_ignitionPredict uses too). Only xgboost fits exist (`buildModel()` stops for any other
+#' algorithm). The message gives its reason.
 #'
 #' @param fitted A stored `list(modelList = list(model = ...), ...)`, or `NULL`.
 #' @param covariates The data.table `buildModelsFitModels()` would fit with.
 #' @param polygonID,type Used in the message only.
 #' @return Logical, length one; `FALSE` if `fitted` is `NULL` or has no boosters.
 storedFitIsCompatible <- function(fitted, covariates, polygonID = "", type = "ignition") {
-  boosters <- fitted$modelList$model
-  boosters <- boosters[grep("^Fold", names(boosters))]
-  if (!length(boosters)) {
-    message("fireSense_ignitionFit: no stored ", type, " model for polygon ", polygonID, "; fitting.")
-    return(FALSE)
-  }
-  foreign <- foreignObjectives(fitted)
-  if (length(foreign)) {
-    message("fireSense_ignitionFit: the stored ", type, " model for polygon ", polygonID,
-            " was fitted with objective ", paste(foreign, collapse = ", "), ", not ", fireSenseUtils::ignitionObjectiveTxt,
-            ". Fitting again.")
-    return(FALSE)
-  }
-  stored <- unique(unlist(lapply(boosters, stats::variable.names)))
-  current <- xgbFeatureNames(colnames(covariates))
-  missingNow <- setdiff(stored, current)
-  if (length(missingNow)) {
-    message("fireSense_ignitionFit: the stored ", type, " model for polygon ", polygonID,
-            " uses features absent from the current covariates (", paste(missingNow, collapse = ", "),
-            "); current covariates not in the model: ",
-            paste(setdiff(current, stored), collapse = ", "), ". Fitting again.")
-    return(FALSE)
-  }
-  TRUE
+  problem <- fireSenseUtils::storedFitProblem(fitted, covariates)
+  if (is.null(problem)) return(TRUE)
+  message("fireSense_ignitionFit: the stored ", type, " model for polygon ", polygonID, ": ", problem,
+          ". Fitting again.")
+  FALSE
 }
 
 #' Is every stored fit this run needs compatible with the current covariates?
 #'
 #' @param sim A `simList` for which [hasPreRunIgnitionFitForThisPolygon()] is `TRUE`.
-#' @return Logical, length one: `storedFitIsCompatible()` for each of `P(sim)$whichProcessesToFit`.
+#' @return Logical, length one: `storedFitIsCompatible()` for each of `P(sim)$whichProcessesToFit`. A process
+#'   whose covariates are `NULL` (the fit data were not prepared, as `fireSense_dataPrepFit` does when `doFit`
+#'   is `FALSE`) is not compared: `fireSense_ignitionPredict` checks the stored fit against its covariates.
 useExistingFitIsCompatible <- function(sim) {
   ## Over several ELFs (a studyAreaLarge) this run's covariates pool them, while each stored model predicts
   ## on its own ELF's covariates (fireSense_dataPrepPredict): there is nothing to compare, and no fit of
@@ -109,9 +79,14 @@ useExistingFitIsCompatible <- function(sim) {
   row <- ledgerRowForThisPolygon(sim)
   procs <- P(sim)$whichProcessesToFit
   ok <- vapply(procs, function(igOrEsc) {
+    covs <- sim[[igOrEscNames(igOrEsc, post = "Covariates")]]
+    if (is.null(covs)) {
+      message("fireSense_ignitionFit: no ", igOrEsc, " fit data, so the stored model is not compared with them; ",
+              "fireSense_ignitionPredict checks it against its covariates.")
+      return(TRUE)
+    }
     col <- fireSenseUtils::ignitionFitAdditionalColNamesTxt[match(igOrEsc, c("ignition", "escape"))]
-    storedFitIsCompatible(row[[col]][[1]],
-                          sim[[igOrEscNames(igOrEsc, post = "Covariates")]],
+    storedFitIsCompatible(row[[col]][[1]], covs,
                           polygonID = paste(sim$.ELFind, collapse = ", "), type = igOrEsc)
   }, logical(1))
   all(ok)
@@ -126,23 +101,10 @@ useExistingFitIsCompatible <- function(sim) {
 #' @return Named list of the functions and `fireSenseUtils::ignitionObjectiveTxt`.
 buildModelCallees <- function() {
   list(runXGBOOST = runXGBOOST, cvFolds = cvFolds, stopIfFoldsLackPositives = stopIfFoldsLackPositives,
-       xgbFeatureNames = xgbFeatureNames, rocPerFold = rocPerFold, aucPerFold = aucPerFold,
+       xgbFeatureNames = fireSenseUtils::xgbFeatureNames, rocPerFold = rocPerFold, aucPerFold = aucPerFold,
        outOfFoldYearTotals = outOfFoldYearTotals, outOfFoldPrediction = outOfFoldPrediction,
        yearBlockedFolds = yearBlockedFolds, xgbSettings = xgbSettings, earlyStoppedRounds = earlyStoppedRounds,
        concentrationOf = concentrationOf, giniIndex = giniIndex,
        foldsLackPositives = foldsLackPositives, fitFoldXgboost = fitFoldXgboost, exposureOf = exposureOf,
        ignitionObjectiveTxt = fireSenseUtils::ignitionObjectiveTxt)
-}
-
-#' Were all of a stored fit's fold boosters fitted with this module's objective?
-#'
-#' @param fitted A `list(modelList = list(model = ...), ...)`, or `NULL`.
-#' @return A character vector of the objectives that differ from `fireSenseUtils::ignitionObjectiveTxt` (empty when all
-#'   match); `"unknown"` stands for a booster whose objective cannot be read.
-foreignObjectives <- function(fitted) {
-  boosters <- fitted$modelList$model
-  boosters <- boosters[grep("^Fold", names(boosters))]
-  obj <- fireSenseUtils::xgbObjective(boosters)
-  obj[is.na(obj)] <- "unknown"
-  unique(obj[obj != fireSenseUtils::ignitionObjectiveTxt])
 }

@@ -30,3 +30,21 @@ ignitionFitYears <- function(sim) {
            sim$fireSense_escapeCovariates[[fireSenseUtils::yearTxt]])
   as.integer(yrs)
 }
+
+#' The ledger rows of this polygon, when the run has no fit data to name the file from
+#'
+#' With `ignitionFitFilename = "latest"` the file is named for the fit's fire years, which come from the
+#' covariates ([ignitionFitYears()]). A run that only reuses the ledger's fit has none (`fireSense_dataPrepFit`
+#' does not prepare them when `doFit` is `FALSE`), so the newest row of `sim$.ELFind` over the ledger files is
+#' read, as `fireSense_ELFs` reads it (`fireSenseUtils::latestIgnitionFits()`).
+#'
+#' @param sim A `simList`.
+#' @return The ledger rows of `sim$.ELFind`, or `NULL` when no file has one.
+ignitionLedgerLatestRows <- function(sim) {
+  if (is.null(Par$ignitionFitGoogleDriveFolder))
+    stop("fireSense_ignitionFit: ignitionFitFilename = \"latest\" without fit data needs ignitionFitGoogleDriveFolder; ",
+         "name the ledger file to read a local one", call. = FALSE)
+  fireSenseUtils::latestIgnitionFits(Par$ignitionFitGoogleDriveFolder, destinationPath = inputPath(sim),
+                                     polygonIDs = as.character(sim$.ELFind),
+                                     suffix = SpaDES.core::paramCheckOtherMods(sim, "fitFileSuffix"))
+}

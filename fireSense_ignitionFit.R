@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9168)", # 9168: foldMeanPrediction(), escapeProbPerIgnition()
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9177)", # 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
                   "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -197,7 +197,7 @@ doEvent.fireSense_ignitionFit = function(sim, eventTime, eventType, debug = FALS
 ### template initialization
 #' Check inputs before fitting (the `checkData` event)
 #'
-#' Requires the `nonNAs` attribute on `ignitionFitRTM` when fitting ignition. When `sim$studyArea`
+#' When `sim$studyArea`
 #' is supplied, also reads the shared ignition/escape fit ledger with `CacheGeo` into
 #' `sim$ignitionFitPreRun`, so `run` can tell whether this polygon already has a fit.
 #'
@@ -205,12 +205,6 @@ doEvent.fireSense_ignitionFit = function(sim, eventTime, eventType, debug = FALS
 #' @return `sim`, invisibly, unchanged except for `sim$ignitionFitPreRun`.
 Init <- function(sim) {
 
-  if ("ignition" %in% P(sim)$whichProcessesToFit) {
-    if (is.null(attributes(sim$ignitionFitRTM)$nonNAs) ||
-        length(attributes(sim$ignitionFitRTM)$nonNAs) == 0) {
-      stop("sim$ignitionFitRTM@data@attributes$nonNAs must be a non-empty/non-NULL numeric")
-    }
-  }
   if (!any(c("ignition", "escape") %in% P(sim)$whichProcessesToFit)) {
     stop("please review P(sim)$whichProcesesToFit...ensure lower-case")
   }
@@ -218,8 +212,12 @@ Init <- function(sim) {
   if (!is.null(sim$studyArea)) {
     sa <- sim$studyArea
     if (inherits(sa, "SpatVector")) sa <- sf::st_as_sf(sa)
-    sim$ignitionFitPreRun <- ignitionLedgerCacheGeo(sim, domain = sa, action = "nothing",
-                                                    useCache = FALSE, bufferOK = TRUE)
+    sim$ignitionFitPreRun <-
+      if (identical(P(sim)$ignitionFitFilename, "latest") && !length(ignitionFitYears(sim))) {
+        ignitionLedgerLatestRows(sim)   # no fit data to name the file from
+      } else {
+        ignitionLedgerCacheGeo(sim, domain = sa, action = "nothing", useCache = FALSE, bufferOK = TRUE)
+      }
   }
 
   return(invisible(sim))
@@ -235,7 +233,8 @@ Init <- function(sim) {
 #' `P(sim)$whichProcessesToFit`, assigns the results to `sim$fireSense_IgnitionFitted` and/or
 #' `sim$fireSense_EscapeFitted`, and, when `sim$studyArea` is supplied, writes them to the ledger.
 #'
-#' @param sim A `simList`.
+#' @param sim A `simList`. A fit of ignition needs the `nonNAs` attribute on `sim$ignitionFitRTM`; a run that
+#'   uses the ledger's fit does not need `sim$ignitionFitRTM`.
 #' @return `sim`, invisibly.
 frequencyFitRun <- function(sim) {
 
@@ -249,6 +248,10 @@ frequencyFitRun <- function(sim) {
     stop("fireSense_ignitionFit: a fit is of one ELF, but this run covers several (", paste(sim$.ELFind, collapse = ", "),
          "). Fit each on its own (`.ELFind`), or predict from their stored fits (`doFit = FALSE`, the default).",
          call. = FALSE)
+
+  if ("ignition" %in% P(sim)$whichProcessesToFit &&
+      (is.null(attributes(sim$ignitionFitRTM)$nonNAs) || length(attributes(sim$ignitionFitRTM)$nonNAs) == 0))
+    stop("sim$ignitionFitRTM@data@attributes$nonNAs must be a non-empty/non-NULL numeric")
 
   #TODO: make cache smart by digest args in advance
   whichProcessesToFit <- P(sim)$whichProcessesToFit
@@ -426,7 +429,7 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 
     figPath <- figurePath(sim)
     digModels <- attr(modelHere, "tags")
-    modelOnly <- modelHere[grep("Fold", names(modelHere))]
+    modelOnly <- fireSenseUtils::foldModels(list(modelList = list(model = modelHere)))
     aa <- setupPlots(modelOnly, dat = data$covariates, igOrEsc) |>
       Cache(omitArgs = c("dat", "modelOnly"),
             .cacheExtra = list(digestOfData = data$digestOfData, digModels = digModels, plotPredictions = plotPredictions),
@@ -499,7 +502,7 @@ runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5, xgb = xgbSetting
   colOrder <- sample(colOrder)
   dat3Forxgboost <- dat3Forxgboost[, ..colOrder]
   dig <- c(.robustDigest(dat3Forxgboost), if (!all(weight == 1)) .robustDigest(weight))
-  colnamesNoIgn <- xgbFeatureNames(colnames(dat3Forxgboost)) # alphabetical
+  colnamesNoIgn <- fireSenseUtils::xgbFeatureNames(colnames(dat3Forxgboost)) # alphabetical
   dat3ForxgboostNoIgn <- dat3Forxgboost[, ..colnamesNoIgn]
 
   ignOrEscapeColName <- grep(value = TRUE,type, colnames(dat3Forxgboost))
