@@ -26,7 +26,7 @@ defineModule(sim, list(
                   "PredictiveEcology/reproducible@development (>= 3.2.1.9067)", # CacheGeo: ledger with xgboost models; `le = le` no longer partially matches `ledger`
                   "RhpcBLASctl", "sf",
                   "caret", "pROC",
-                  "PredictiveEcology/SHAPforxgboost (>= 0.1.3.9001)", "xgboost (>=3.0.0)", "lightgbm", # install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
+                  "PredictiveEcology/SHAPforxgboost (>= 0.1.3.9001)", "xgboost (>= 3.2.1.1)", "lightgbm", # 3.2.1.1: xgb.train(early_stopping_rounds), xgb.slice.DMatrix and evaluation_log used by earlyStoppedRounds() were checked on it only; install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
                   "terra"),
   parameters = bindrows(
     defineParameter("crossValType", "character", c("time-ordered", "crossValidation"), NA, NA,
@@ -463,7 +463,9 @@ buildModelsFitModels <- function(igOrEsc, sim) {
 #'   `yearTotals` from `outOfFoldYearTotals()`: out of year, from extra models fitted on `yearBlockedFolds()`
 #'   (not returned), or out of fold from the `cvFolds()` models with fewer than 2 years or when a year-blocked
 #'   fold would train without a positive, and `concentration`: `concentrationOf()` of the same out-of-year (or
-#'   out-of-fold) predictions and the response, with the rounds each fold model kept.
+#'   out-of-fold) predictions and the response, with the rounds each fold model kept. With `xgbEarlyStopping` the
+#'   held-out rows of a fold also chose its rounds (`earlyStoppedRounds()`), so these out-of-year (out-of-fold) lift,
+#'   Gini index and deviance are slightly optimistic.
 runXGBOOST <- function(dat, dig, type = "ignition", nFolds = 5, xgb = xgbSettings()) {
   dat3Forxgboost <- dat
 
@@ -714,6 +716,7 @@ fitFoldXgboost <- function(x, y, evalSet, functionName, cacheExtra, weight = NUL
 #' @inheritParams fitFoldXgboost
 #' @return The best round: the one with the lowest held-out Poisson loss (a number from 1 to `xgb$nrounds`).
 earlyStoppedRounds <- function(x, y, evalSet, weight = NULL, xgb = xgbSettings()) {
+  evalSet <- as.integer(evalSet)
   dm <- xgb.DMatrix(as.matrix(x), label = y, weight = weight)
   trained <- xgb.train(
     params = list(objective = fireSenseUtils::ignitionObjectiveTxt, max_depth = xgb$max_depth,

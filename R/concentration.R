@@ -3,7 +3,9 @@
 #' A boosted model with few, shallow trees and shrinkage pulls predictions toward the mean, so it can spread the
 #' expected events more evenly over the pixel-years than they happen. This measures it on out-of-fold (or
 #' out-of-year) predictions, so a model is not credited for what it has seen. Pixel-years are ranked by the
-#' prediction, highest first; tied predictions share their events equally.
+#' prediction, highest first; tied predictions share their events equally. With early stopping a fold's held-out
+#' rows also chose its number of rounds, so the lift, the Gini index and the deviance on them are slightly
+#' optimistic (the predicted share is a little more concentrated, the deviance a little lower, than for new data).
 #'
 #' @param observed The observed count of each pixel-year (in the core, for ignitions).
 #' @param expected The out-of-fold prediction of each pixel-year, as a count in the same units
@@ -58,9 +60,19 @@ matchedIgnitionRows <- function(ignitions, escapes) {
 #' When `fireSense_burn` places ignitions with the ignition model, each ignition escapes with the escape model's
 #' probability at the pixel it lands in (`fireSenseUtils::escapeProbPerIgnition()`), and the expected escapes of
 #' the fit period are `sum(w * lambda * q)` over the pixel-years (`w` the share in the core, `exposureOf()`,
-#' `lambda` the expected ignitions of the whole pixel, `q` the escape probability per ignition), the quantities
-#' `fittedYearEffects()` expects the years' escapes with, in-sample (fold-mean predictions). `c` is the
-#' observed escapes over these. It is split exactly into three factors,
+#' `lambda` the expected ignitions of the whole pixel, `q` the escape probability per ignition), from the in-sample
+#' fold-mean predictions that `fittedYearEffects()` starts from. `c` is the observed escapes over these.
+#'
+#' `c` is the structural level, WITHOUT year effects: `lambda` and the escape mean are the models' predictions as
+#' they are (multiplier 1), not multiplied by the fitted year multipliers. Those are relative to this level, and
+#' `fittedYearEffects()` solves the escape multipliers on the ignitions already scaled by the ignition multipliers,
+#' which is a different quantity from `c`. The weights are `fireSense_burn`'s rule: it draws Poisson ignitions
+#' (`drawCounts()`) with the whole pixel's mean on every coarse pixel, escapes each with `q`
+#' (`drawEscapes()`, `rbinom(ignitions, q)`), places each ignition in a random flammable cell of its coarse
+#' pixel and keeps the starts in the core (`inELFCore()`), so a pixel's expected core ignitions are
+#' `coreFraction * lambda` and its expected core escapes `coreFraction * lambda * q`, as here.
+#'
+#' It is split exactly into three factors,
 #' `c = ignitionRatio * escapeCalibration * placement`: the observed over the expected ignitions; the observed
 #' escapes over those expected from the observed ignitions (`sum(ignitions * q)`: the escape model's calibration
 #' where ignitions happened); and `qObserved / qModel`, the mean `q` where ignitions were observed over the mean

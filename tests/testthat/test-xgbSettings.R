@@ -112,3 +112,29 @@ test_that("deeper trees concentrate the predictions on a planted hotspot: the li
   expect_gt(deep$concentration$gini[["predicted"]], shallow$concentration$gini[["predicted"]])
   expect_lt(deep$concentration$deviance, shallow$concentration$deviance)
 })
+
+test_that("the refit with the chosen rounds is the xgb.train() model at its best round", {
+  fitCache()
+  dat <- makeNoisyCovariates()
+  x <- as.data.frame(dat)[, c("x1", "x2", "x3")]
+  w <- rep(c(1, 0.5, 0.8), length.out = nrow(x))
+  y <- dat$ignitions / w
+  evalSet <- seq(1, nrow(x), by = 5)
+  xgb <- xgbSettings(maxDepth = 4, learningRate = 0.3, nrounds = 200, earlyStopping = 10)
+  utils::capture.output(m <- fitFoldXgboost(x, y, evalSet, "sameModel", "sameModel", weight = w, xgb = xgb))
+  ## the same training, in one xgb.train() call with early stopping, and its model at the best round
+  dm <- xgb.DMatrix(as.matrix(x), label = y, weight = w)
+  trained <- xgb.train(params = list(objective = "count:poisson", max_depth = 4, learning_rate = 0.3, reg_lambda = 0.5,
+                                     nthread = 1, verbosity = 0),
+                       data = xgb.slice.DMatrix(dm, setdiff(seq_len(nrow(x)), evalSet)), nrounds = 200,
+                       evals = list(eval = xgb.slice.DMatrix(dm, as.integer(evalSet))), early_stopping_rounds = 10, verbose = 0)
+  best <- which.min(attributes(trained)$evaluation_log$eval_poisson_nloglik)
+  expect_identical(nrow(attr(m, "evaluation_log")), as.integer(best))
+  expect_lt(best, 200)
+  atBest <- predict(trained, as.matrix(x), iterationrange = c(1, best))
+  expect_equal(unname(predict(m, x)), unname(atBest), tolerance = 1e-6)
+  expect_equal(unname(predict(trained, as.matrix(x))), unname(atBest))             # the default prediction is at the best round
+  ## the comparison is not trivial: the rounds after the best one predict differently
+  expect_false(isTRUE(all.equal(unname(predict(trained, as.matrix(x), iterationrange = c(1, nrow(attributes(trained)$evaluation_log)))),
+                                unname(atBest), tolerance = 1e-6)))
+})
