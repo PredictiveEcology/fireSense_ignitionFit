@@ -228,12 +228,21 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> fitFileSuffix </td>
+   <td style="text-align:left;"> escapeSizeHa </td>
+   <td style="text-align:left;"> numeric </td>
+   <td style="text-align:left;"> 50 </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Size (ha) of the whole fire polygon at and above which a fire escaped: the escape definition (`fireSenseUtils::escapeDefinition()`) the escape model is fitted under, as in `fireSense_dataPrepFit` (every module that has it must agree: an error otherwise). Recorded in the ledger row, so `fireSenseUtils::latestIgnitionFits()` uses only fits made under the run's definition. </td>
+   <td style="text-align:left;"> TRUE </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> fireCauses </td>
    <td style="text-align:left;"> character </td>
-   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> natural,.... </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Text put after the model tag in the ledger file names, e.g. `"_boundfix_rep81"`, so a test run writes and reads (`"latest"`) only its own files, never the production ones. `""` (the default) writes the unsuffixed file and reads (`"latest"`) every file of the model tag, newest by the date in its suffix (`fireSenseUtils::ledgerFileOrder()`); experiment fits belong in `spreadFitLedgerFolder(testing = TRUE)`. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`; set it for all with `.globals = list(fitFileSuffix = ...)`; modules that disagree stop (`SpaDES.core::paramCheckOtherMods()`). Ignored when a file name is given. </td>
+   <td style="text-align:left;"> The fire cause groups of the escape definition, as in `fireSense_dataPrepFit` (which must agree: an error otherwise). Recorded in the ledger row with `escapeSizeHa`. </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
@@ -242,7 +251,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> latest </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> File name of the shared fit ledger: an `sf` object with one row per polygon, holding its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `"latest"` (the default) reads and writes the file named for this fit's fire years and model, `fireSenseUtils::ignitionFitFilenameFor()`, e.g. `fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`. </td>
+   <td style="text-align:left;"> File name of the shared fit ledger: an `sf` object with one row per polygon, holding its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. A name (e.g. an experiment's, starting `fireSenseIgnitionParams_`) is read and written as it is. `"latest"` (the default) reads and writes the file named for this fit's fire years, `fireSenseUtils::ignitionFitFilenameFor()`, e.g. `fireSenseIgnitionParams_1986-2024_xgboostPoisson_20261013.rds`; with no fit data, this ELF's newest usable fit in any ledger file (`fireSenseUtils::latestIgnitionFits()`). </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
@@ -296,7 +305,7 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> FALSE </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and stop with an error if it holds none for this polygon (`fitFileSuffix` picks the ledger), so a run that only predicts can never start a fit by accident. NA: do whatever is needed -- use the ledger's ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). </td>
+   <td style="text-align:left;"> Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and stop with an error if it holds none for this polygon (`ignitionFitFilename` picks the ledger), so a run that only predicts can never start a fit by accident. NA: do whatever is needed -- use the ledger's ignition and escape fits if it holds them for this polygon (and they fit the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR DEVELOPERS ONLY: set it when the fit's INPUTS have changed, so the stored row is stale). </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
