@@ -46,6 +46,9 @@ writeIgnitionLedgerRow <- function(sim) {
                     I(list(stripFittedForLedger(sim$fireSense_EscapeFitted)))) |>
     setNames(fireSenseUtils::ignitionFitAdditionalColNamesTxt)
   df <- data.frame(df, polygonID = polygonID)
+  ## the escape definition the escape model was fitted under, so fireSenseUtils::latestIgnitionFits() uses only
+  ## fits made under the run's (as fireSense_spreadFit records it)
+  df <- data.frame(df, as.data.frame(fireSenseUtils::escapeDefinitionOf(sim)))
 
   crses <- terra::crs(sim$studyArea)
   df <- dplyr::mutate(df, crs = I(crses))
@@ -72,8 +75,7 @@ writeIgnitionLedgerRow <- function(sim) {
 ignitionLedgerCacheGeo <- function(sim, ...) {
   CacheGeo(
     cloudFolderID = Par$ignitionFitGoogleDriveFolder,
-    targetFile = ignitionLedgerWriteFile(Par$ignitionFitFilename, ignitionFitYears(sim),
-                                  SpaDES.core::paramCheckOtherMods(sim, "fitFileSuffix")),
+    targetFile = ignitionLedgerWriteFile(Par$ignitionFitFilename, ignitionFitYears(sim)),
     destinationPath = inputPath(sim),
     ## `purge` re-downloads from the cloud copy; with no cloud folder there is nothing to
     ## re-download, and `prepInputs()` then cannot find the local file it just set aside.
