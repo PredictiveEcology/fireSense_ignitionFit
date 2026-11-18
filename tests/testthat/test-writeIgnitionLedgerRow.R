@@ -380,3 +380,57 @@ test_that("a ledger fit made before the concentration diagnostic binds with new 
   expect_null(sim3$fireSense_IgnitionFitted$modelList$concentration)
   expect_false(is.null(sim3$fireSense_IgnitionFitted$modelList$yearEffects))
 })
+
+## fireSense_dataPrepFit leaves the ignition fit data out (and the objects are NULL here, as the module that
+## declares them has not made them) when doFit is FALSE and skipUnusedFitPrep is TRUE.
+noFitData <- list(fireSense_ignitionCovariates = NULL, fireSense_escapeCovariates = NULL, ignitionFitRTM = NULL)
+
+test_that("a ledger fit is reused without the fit data or ignitionFitRTM when doFit is FALSE", {
+  paths <- localLedgerPaths()
+  sa <- studyAreaToy()
+  commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
+  runIgnitionModule(paths, params = commonParams, objects = list(.ELFind = "6.1.1", studyArea = sa))
+
+  msgs <- new.env()
+  ## a named ledger file: with "latest" the file is named for the covariates' years (next test)
+  sim <- runIgnitionModule(paths, params = c(commonParams, list(doFit = FALSE, ignitionFitFilename = ledgerName)),
+                           msgs = msgs,
+                           objects = c(list(.ELFind = "6.1.1", studyArea = sa), noFitData))
+  expect_true(any(grepl("using those instead of fitting", msgs$text)))
+  expect_true(any(grepl("fireSense_ignitionPredict checks it", msgs$text)))
+  expect_false(is.null(sim$fireSense_IgnitionFitted$modelList$model$Fold1))
+  expect_false(is.null(sim$fireSense_EscapeFitted$modelList$model$Fold1))
+})
+
+test_that("a fit still needs the nonNAs of ignitionFitRTM", {
+  rtm <- makeIgnitionFitRTM()
+  attr(rtm, "nonNAs") <- NULL
+  expect_error(runIgnitionModule(localLedgerPaths(), params = list(.plots = NA, doFit = TRUE),
+                                 objects = list(ignitionFitRTM = rtm)),
+               "nonNAs must be a non-empty/non-NULL numeric", fixed = TRUE)
+  ## with a ledger fit and doFit = TRUE, too
+  paths <- localLedgerPaths()
+  objs <- list(.ELFind = "6.1.1", studyArea = studyAreaToy())
+  commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
+  runIgnitionModule(paths, params = commonParams, objects = objs)
+  expect_error(runIgnitionModule(paths, params = c(commonParams, list(doFit = TRUE)),
+                                 objects = c(objs, list(ignitionFitRTM = rtm))),
+               "nonNAs must be a non-empty/non-NULL numeric", fixed = TRUE)
+})
+
+test_that("without fit data, ignitionFitFilename = \"latest\" reads the newest row of the polygon", {
+  rows <- data.frame(polygonID = "6.1.1")
+  called <- NULL
+  local_mocked_bindings(
+    latestIgnitionFits = function(cloudFolderID, destinationPath, polygonIDs, suffix) {
+      called <<- list(cloudFolderID = cloudFolderID, polygonIDs = polygonIDs, suffix = suffix)
+      rows
+    }, .package = "fireSenseUtils")
+  sim <- SpaDES.core::simInit(times = list(start = 1, end = 1), modules = moduleName, paths = localLedgerPaths(),
+                              objects = c(list(.ELFind = "6.1.1", studyArea = studyAreaToy()), noFitData),
+                              params = stats::setNames(list(testParams(list(.plots = NA, doFit = FALSE,
+                                                              ignitionFitGoogleDriveFolder = "folderID"))), moduleName))
+  sim <- suppressMessages(SpaDES.core::spades(sim, events = list(fireSense_ignitionFit = c("init", "checkData"))))
+  expect_identical(sim$ignitionFitPreRun, rows)
+  expect_identical(called, list(cloudFolderID = "folderID", polygonIDs = "6.1.1", suffix = ""))
+})
