@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9177)", # 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9179)", # 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
                   "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -67,19 +67,22 @@ defineModule(sim, list(
                     NA, NA, paste("Google Drive folder url holding the shared ignition/escape fit ledger",
                                   "(`ignitionFitFilename`). `NULL` keeps the ledger purely local, in",
                                   "`inputPath(sim)`, with no Google Drive access at all (e.g. for tests).")),
-    defineParameter("fitFileSuffix", "character", "", NA, NA,
-                    paste("Text put after the model tag in the ledger file names, e.g. `\"_boundfix_rep81\"`, so a test run",
-                          "writes and reads (`\"latest\"`) only its own files, never the production ones. `\"\"` (the",
-                          "default) writes the unsuffixed file and reads (`\"latest\"`) every file of the model tag, newest by the date in its",
-                          "suffix (`fireSenseUtils::ledgerFileOrder()`); experiment fits belong in `spreadFitLedgerFolder(testing = TRUE)`. The same parameter of `fireSense_spreadFit`, `fireSense_dataPrepFit` and `fireSense_ELFs`;",
-                          "set it for all with `.globals = list(fitFileSuffix = ...)`; modules that disagree stop",
-                          "(`SpaDES.core::paramCheckOtherMods()`). Ignored when a file name is given.")),
+    defineParameter("escapeSizeHa", "numeric", fireSenseUtils::fireSenseEscapeSizeHa, NA, NA,
+                    paste("Size (ha) of the whole fire polygon at and above which a fire escaped: the escape definition",
+                          "(`fireSenseUtils::escapeDefinition()`) the escape model is fitted under, as in `fireSense_dataPrepFit`",
+                          "(every module that has it must agree: an error otherwise). Recorded in the ledger row, so",
+                          "`fireSenseUtils::latestIgnitionFits()` uses only fits made under the run's definition.")),
+    defineParameter("fireCauses", "character", fireSenseUtils::fireSenseFireCauses, NA, NA,
+                    paste("The fire cause groups of the escape definition, as in `fireSense_dataPrepFit` (which must agree:",
+                          "an error otherwise). Recorded in the ledger row with `escapeSizeHa`.")),
     defineParameter("ignitionFitFilename", "character", "latest",
                     NA, NA, paste("File name of the shared fit ledger: an `sf` object with one row per polygon, holding",
-                                  "its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. `\"latest\"` (the",
-                                  "default) reads and writes the file named for this fit's fire years and model,",
+                                  "its fitted `fireSense_IgnitionFitted` and `fireSense_EscapeFitted`. A name (e.g. an",
+                                  "experiment's, starting `fireSenseIgnitionParams_`) is read and written as it is. `\"latest\"`",
+                                  "(the default) reads and writes the file named for this fit's fire years,",
                                   "`fireSenseUtils::ignitionFitFilenameFor()`, e.g.",
-                                  "`fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds`.")),
+                                  "`fireSenseIgnitionParams_1986-2024_xgboostPoisson_20261013.rds`; with no fit data, this ELF's",
+                                  "newest usable fit in any ledger file (`fireSenseUtils::latestIgnitionFits()`).")),
     defineParameter("xgbMaxDepth", "numeric", 2, NA, NA,
                     paste("xgboost `max_depth`, the depth of each tree, of the ignition and the escape fits. Few, shallow trees",
                           "(the default 2) and shrinkage pull the predictions toward the mean; deeper trees concentrate them.",
@@ -99,7 +102,7 @@ defineModule(sim, list(
                           "with its own held-out rows, so its predictions on them are slightly optimistic.")),
     defineParameter("doFit", "logical", FALSE, NA, NA,
                     paste("Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and",
-                          "stop with an error if it holds none for this polygon (`fitFileSuffix` picks the ledger), so",
+                          "stop with an error if it holds none for this polygon (`ignitionFitFilename` picks the ledger), so",
                           "a run that only predicts can never start a fit by accident. NA: do whatever is needed --",
                           "use the ledger's ignition and escape fits if it holds them for this polygon (and they fit",
                           "the current covariates), otherwise fit. TRUE: always fit, replacing the ledger row (FOR",
@@ -217,7 +220,7 @@ Init <- function(sim) {
         ## no fit data to name the file from: the newest row of this ELF over the ledger files, as fireSense_ELFs reads it
         fireSenseUtils::latestIgnitionFits(P(sim)$ignitionFitGoogleDriveFolder, destinationPath = inputPath(sim),
                                            polygonIDs = as.character(sim$.ELFind),
-                                           suffix = SpaDES.core::paramCheckOtherMods(sim, "fitFileSuffix"))
+                                           escapeDefinition = fireSenseUtils::escapeDefinitionOf(sim))
       } else {
         ignitionLedgerCacheGeo(sim, domain = sa, action = "nothing", useCache = FALSE, bufferOK = TRUE)
       }
@@ -244,7 +247,7 @@ frequencyFitRun <- function(sim) {
   doFit <- fireSenseUtils::resolveDoFit(P(sim)$doFit, P(sim)$refitExisting,
                                         module = "fireSense_ignitionFit", message = TRUE)
   if (!fireSenseUtils::mustFit(doFit, hasPreRunIgnitionFitForThisPolygon(sim) && useExistingFitIsCompatible(sim),
-                               paste(sim$.ELFind, collapse = ", "), fitFileSuffix = P(sim)$fitFileSuffix)) {
+                               paste(sim$.ELFind, collapse = ", "))) {
     return(invisible(useExistingIgnitionFit(sim)))
   }
   if (length(sim$.ELFind) > 1L)

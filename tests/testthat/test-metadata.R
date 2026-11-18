@@ -41,7 +41,7 @@ test_that("parameters are the expected names", {
     sort(md$parameters$paramName),
     sort(c(".neverCache", ".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
            "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
-           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting", "doFit", "fitFileSuffix",
+           "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting", "doFit", "escapeSizeHa", "fireCauses",
            "xgbMaxDepth", "xgbLearningRate", "xgbNrounds", "xgbRegLambda", "xgbEarlyStopping"))
   )
 })
@@ -54,7 +54,7 @@ test_that("parameters have the expected classes and defaults", {
     classes[order(names(classes))],
     c(.neverCache = "character", .plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
       .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
-      doFit = "logical", fitFileSuffix = "character", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
+      doFit = "logical", escapeSizeHa = "numeric", fireCauses = "character", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
       modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
       whichProcessesToFit = "character", xgbEarlyStopping = "numeric", xgbLearningRate = "numeric",
       xgbMaxDepth = "numeric", xgbNrounds = "numeric", xgbRegLambda = "numeric")

@@ -74,14 +74,19 @@ test_that("a fit writes one ledger row per polygon, with rocs stripped", {
   expect_identical(ledgerFit$scaleData, sim$fireSense_IgnitionFitted$scaleData)
 })
 
-test_that("with fitFileSuffix the fit goes to its own ledger file and the production name is untouched", {
+test_that("a named ignitionFitFilename (an experiment's) receives the fit, and the row records the escape definition", {
+  ## fitFileSuffix is gone: an experiment names its ledger file in full. The escape definition is recorded so
+  ## fireSenseUtils::latestIgnitionFits() uses only fits made under the run's.
   paths <- localLedgerPaths()
   runIgnitionModule(paths, params = list(.plots = NA, ignitionFitGoogleDriveFolder = NULL,
-                                         fitFileSuffix = "_boundfix_rep81"),
+                                         ignitionFitFilename = "fireSenseIgnitionParams_myExperiment.rds"),
                     objects = list(.ELFind = "6.1.1", studyArea = studyAreaToy()))
   files <- list.files(paths$inputPath, pattern = "^fireSenseIgnitionParams_.*\\.rds$")
-  expect_identical(files, sub("\\.rds$", "_boundfix_rep81.rds", ledgerName))
-  expect_identical(ignitionLedgerWriteFile("mine.rds", 2001:2004, "_x"), "mine.rds")  # a named file is used as given
+  expect_identical(files, "fireSenseIgnitionParams_myExperiment.rds")
+  row <- readRDS(file.path(paths$inputPath, files))
+  expect_equal(as.data.frame(row)[, names(fireSenseUtils::escapeDefinition())],
+               as.data.frame(fireSenseUtils::escapeDefinition()), ignore_attr = TRUE)
+  expect_identical(ignitionLedgerWriteFile("mine.rds", 2001:2004), "mine.rds")  # a named file is used as given
 })
 
 test_that("a stored ledger fit is used instead of refitting, and predict() still works on it", {
@@ -164,7 +169,7 @@ test_that("doFit FALSE (the default), NA and TRUE, with and without a ledger fit
   ## no ledger fit
   r <- fitsInRun(localLedgerPaths(), list(doFit = NULL), ledger = FALSE)                  # default: error
   expect_identical(r$fits, 0L)
-  expect_match(r$error, "polygon 6\\.1\\.1 in the ledger with fitFileSuffix \"\".*the default.*doFit = NA")
+  expect_match(r$error, "polygon 6\\.1\\.1 in the ledger.*the default.*doFit = NA")
   expect_gt(fitsInRun(localLedgerPaths(), list(doFit = NA), ledger = FALSE)$fits, 0L)     # fit
   expect_gt(fitsInRun(localLedgerPaths(), list(doFit = TRUE), ledger = FALSE)$fits, 0L)
   r <- fitsInRun(localLedgerPaths(), list(doFit = FALSE), ledger = FALSE)                  # never fit: error
@@ -422,8 +427,8 @@ test_that("without fit data, ignitionFitFilename = \"latest\" reads the newest r
   rows <- data.frame(polygonID = "6.1.1")
   called <- NULL
   local_mocked_bindings(
-    latestIgnitionFits = function(cloudFolderID, destinationPath, polygonIDs, suffix) {
-      called <<- list(cloudFolderID = cloudFolderID, polygonIDs = polygonIDs, suffix = suffix)
+    latestIgnitionFits = function(cloudFolderID, destinationPath, polygonIDs, escapeDefinition) {
+      called <<- list(cloudFolderID = cloudFolderID, polygonIDs = polygonIDs, escapeDefinition = escapeDefinition)
       rows
     }, .package = "fireSenseUtils")
   sim <- SpaDES.core::simInit(times = list(start = 1, end = 1), modules = moduleName, paths = localLedgerPaths(),
@@ -432,5 +437,7 @@ test_that("without fit data, ignitionFitFilename = \"latest\" reads the newest r
                                                               ignitionFitGoogleDriveFolder = "folderID"))), moduleName))
   sim <- suppressMessages(SpaDES.core::spades(sim, events = list(fireSense_ignitionFit = c("init", "checkData"))))
   expect_identical(sim$ignitionFitPreRun, rows)
-  expect_identical(called, list(cloudFolderID = "folderID", polygonIDs = "6.1.1", suffix = ""))
+  ## the run's escape definition, so a fit made under another is skipped
+  expect_identical(called, list(cloudFolderID = "folderID", polygonIDs = "6.1.1",
+                                escapeDefinition = fireSenseUtils::escapeDefinition()))
 })
