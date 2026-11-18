@@ -32,7 +32,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9013</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9014</span>
       </span>
     </div>
 
@@ -532,6 +532,121 @@ NA
 </td>
 <td style="text-align:left;">
 File name of the shared fit ledger: an <code>sf</code> object with one row per polygon, holding its fitted <code>fireSense_IgnitionFitted</code> and <code>fireSense_EscapeFitted</code>. <code>"latest"</code> (the default) reads and writes the file named for this fit’s fire years and model, <code><a href="https://rdrr.io/pkg/fireSenseUtils/man/ignitionFitLedger.html" class="external-link">fireSenseUtils::ignitionFitFilenameFor()</a></code>, e.g. <code>fireSenseIgnitionParams_1985-2024_xgboostPoisson_20261013.rds</code>.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+xgbMaxDepth
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+2
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+xgboost <code>max_depth</code>, the depth of each tree, of the ignition and the escape fits. Few, shallow trees (the default 2) and shrinkage pull the predictions toward the mean; deeper trees concentrate them. The defaults of the five <code>xgb</code> parameters are the values the fits were hard-coded with, so a fit with them is the one made before they existed (<code><a href="reference/xgbSettings.html">xgbSettings()</a></code>).
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+xgbLearningRate
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+0.15
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+xgboost <code>learning_rate</code>, the shrinkage of each boosting round.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+xgbNrounds
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+100
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+xgboost <code>nrounds</code>, the number of boosting rounds; with <code>xgbEarlyStopping</code>, the most a fold may use.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+xgbRegLambda
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+0.5
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+xgboost <code>reg_lambda</code>, the L2 penalty on the leaf weights.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+xgbEarlyStopping
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+<code>NA</code> (default): off, every fold boosts <code>xgbNrounds</code> rounds. A number of rounds: each fold’s boosting stops once the Poisson loss of its held-out rows (<code><a href="reference/cvFolds.html">cvFolds()</a></code>, or the whole years of <code><a href="reference/yearBlockedFolds.html">yearBlockedFolds()</a></code> for the year-blocked models) has not improved for this many rounds, and the fold’s model keeps the best round (at most <code>xgbNrounds</code>). The fold is chosen with its own held-out rows, so its predictions on them are slightly optimistic.
 </td>
 <td style="text-align:left;">
 TRUE

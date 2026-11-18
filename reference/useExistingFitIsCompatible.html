@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9013</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9014</span>
       </span>
     </div>
 
@@ -70,7 +70,9 @@
 </dl></div>
     <div id="value">
     <h2>Value</h2>
-    <p>Logical, length one: <code><a href="storedFitIsCompatible.html">storedFitIsCompatible()</a></code> for each of <code>P(sim)$whichProcessesToFit</code>.</p>
+    <p>Logical, length one: <code><a href="storedFitIsCompatible.html">storedFitIsCompatible()</a></code> for each of <code>P(sim)$whichProcessesToFit</code>. A process
+whose covariates are <code>NULL</code> (the fit data were not prepared, as <code>fireSense_dataPrepFit</code> does when <code>doFit</code>
+is <code>FALSE</code>) is not compared: <code>fireSense_ignitionPredict</code> checks the stored fit against its covariates.</p>
     </div>
 
   </div>

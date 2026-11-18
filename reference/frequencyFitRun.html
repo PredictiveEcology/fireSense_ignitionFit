@@ -23,7 +23,7 @@ sim$fireSense_EscapeFitted, and, when sim$studyArea is supplied, writes them to 
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9013</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9014</span>
       </span>
     </div>
 
@@ -77,7 +77,8 @@ and no usable ledger fit the run stops. Otherwise calls <code><a href="buildMode
 
 
 <dl><dt id="arg-sim">sim<a class="anchor" aria-label="anchor" href="#arg-sim"></a></dt>
-<dd><p>A <code>simList</code>.</p></dd>
+<dd><p>A <code>simList</code>. A fit of ignition needs the <code>nonNAs</code> attribute on <code>sim$ignitionFitRTM</code>; a run that
+uses the ledger's fit does not need <code>sim$ignitionFitRTM</code>.</p></dd>
 
 </dl></div>
     <div id="value">
