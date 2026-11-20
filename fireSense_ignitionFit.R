@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9179)", # 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9182)", # 9182: yearClimateColumn(), yearClimateMeans(), yearClimateMultiplier(); 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
                   "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -100,6 +100,12 @@ defineModule(sim, list(
                           "`yearBlockedFolds()` for the year-blocked models) has not improved for this many rounds,",
                           "and the fold's model keeps the best round (at most `xgbNrounds`). The fold is chosen",
                           "with its own held-out rows, so its predictions on them are slightly optimistic.")),
+    defineParameter("ignitionYearClimate", "character", "CMDsm", NA, NA,
+                    paste("The climate covariate whose yearly ELF mean scales each year's expected ignitions,",
+                          "`exp(beta * z)` with `beta >= 0` fitted to the out-of-year totals and `z` the standardised yearly",
+                          "mean (`fitYearClimate()`); fixed for every ELF; revisit when all ELFs are fitted. With or without",
+                          "underscore (`CMD_sm` is `CMDsm`); stops if it is not a column of `fireSense_ignitionCovariates`.",
+                          "`NA`: no term.")),
     defineParameter("doFit", "logical", FALSE, NA, NA,
                     paste("Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and",
                           "stop with an error if it holds none for this polygon (`ignitionFitFilename` picks the ledger), so",
@@ -362,8 +368,9 @@ fitCovariates <- function(igOrEsc, sim, modelAlgorithm = Par$modelAlgorithm, res
 
 #' Add the fitted year effects and the chained-escape factor to the ignition and escape fits
 #'
-#' Predicts every pixel and year of the fit data with each fit (`fireSenseUtils::foldMeanPrediction()`) and
-#' stores `fittedYearEffects()` as `modelList$yearEffects` of `sim$fireSense_IgnitionFitted` and
+#' Predicts every pixel and year of the fit data with each fit (`fireSenseUtils::foldMeanPrediction()`; the ignition
+#' prediction is multiplied by the year climate term, `modelList$yearClimate`, so the fitted multipliers are relative
+#' to it) and stores `fittedYearEffects()` as `modelList$yearEffects` of `sim$fireSense_IgnitionFitted` and
 #' `sim$fireSense_EscapeFitted`, for `fireSense_ignitionPredict` to pass to `fireSense_burn`, and
 #' `chainedEscapeFactor()` of the same predictions as `modelList$concentration$chain` of the escape fit (logged).
 #'
@@ -373,7 +380,8 @@ addFittedYearEffects <- function(sim) {
   one <- function(igOrEsc, fit, response) {
     raw <- sim[[igOrEscNames(igOrEsc, post = "Covariates")]]
     data.table(pixelID = raw$pixelID, year = raw[[fireSenseUtils::yearTxt]], observed = raw[[response]],
-               mean = fireSenseUtils::foldMeanPrediction(fit, fitCovariates(igOrEsc, sim)$covariates),
+               mean = fireSenseUtils::foldMeanPrediction(fit, fitCovariates(igOrEsc, sim)$covariates) *
+                 (if (igOrEsc == "ignition") yearClimateRowMultiplier(fit$modelList$yearClimate, raw) else 1),
                weight = exposureOf(raw, "ignition"))
   }
   ignitions <- one("ignition", sim$fireSense_IgnitionFitted, fireSenseUtils::ignitionsTxt)
@@ -396,7 +404,8 @@ addFittedYearEffects <- function(sim) {
 #'   `model` (from `buildModel()`), `rescales`, `fittingRes` (resolution of `ignitionFitRTM`),
 #'   `lambdaRescaleFactor` (rows of covariates / non-NA cells of `ignitionFitRTM`) and `yearSD`, the sd
 #'   of the year effect on the predicted mean (`fireSenseUtils::yearEffectSD()` of the out-of-fold
-#'   `model$yearTotals`), which `fireSense_burn` draws each year, with one z shared by ignitions, escapes and spread,
+#'   `model$yearTotals`, for ignitions after the year climate term), `yearClimate` (ignitions only, absent
+#'   when `ignitionYearClimate` is `NA`: `fitYearClimate()`), which `fireSense_burn` draws each year, with one z shared by ignitions, escapes and spread,
 #'   and `concentration` (`concentrationOf()`, logged by `concentrationMessage()`).
 buildModelsFitModels <- function(igOrEsc, sim) {
   data <- fitCovariates(igOrEsc, sim)
@@ -420,13 +429,26 @@ buildModelsFitModels <- function(igOrEsc, sim) {
   modelHere$concentration <- NULL
   message(concentrationMessage(concentration, igOrEsc))
 
+  ## the year climate term of the ignitions; `yearSD` is the spread left after it
+  yearClimate <- NULL
+  yearTotals <- modelHere$yearTotals
+  if (identical(igOrEsc, "ignition") && !is.na(Par$ignitionYearClimate)) {
+    raw <- sim$fireSense_ignitionCovariates
+    if (!is.null(yearTotals))
+      yearTotals$year <- calendarYearOf(yearTotals$year, data$covariates[[fireSenseUtils::yearTxt]], raw[[fireSenseUtils::yearTxt]])
+    yearClimate <- fitYearClimate(Par$ignitionYearClimate, raw, yearTotals)
+    if (!is.null(yearTotals))
+      yearTotals$predicted <- yearTotals$predicted * yearClimateRowMultiplier(yearClimate, raw, yearTotals$year)
+  }
+
   modelList <- list(
     model = modelHere,
     rescales = data$ignitionRescalers,
     fittingRes = res(sim$ignitionFitRTM)[1],
     lambdaRescaleFactor = lambdaRescaleFactor,
-    yearSD = fireSenseUtils::yearEffectSD(modelHere$yearTotals$observed, modelHere$yearTotals$predicted),
+    yearSD = fireSenseUtils::yearEffectSD(yearTotals$observed, yearTotals$predicted),
     concentration = concentration)
+  modelList$yearClimate <- yearClimate   # absent (not NULL) without a term, as in fits made before it
 
   class(modelList) <- igOrEscNames(igOrEsc, post = "Fit", case = "Title")
 
