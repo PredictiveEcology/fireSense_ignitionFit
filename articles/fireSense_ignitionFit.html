@@ -72,7 +72,7 @@
       <h1 data-toc-skip>fireSense_ignitionFit Manual</h1>
             <h3 data-toc-skip class="subtitle">v.1.2.0.9014</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-11-18</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-11-20</h4>
       
 
       <div class="hidden name"><code>fireSense_ignitionFit.Rmd</code></div>
@@ -693,6 +693,29 @@ NA
 </td>
 <td style="text-align:left;">
 <code>NA</code> (default): off, every fold boosts <code>xgbNrounds</code> rounds. A number of rounds: each fold’s boosting stops once the Poisson loss of its held-out rows (<code><a href="../reference/cvFolds.html">cvFolds()</a></code>, or the whole years of <code><a href="../reference/yearBlockedFolds.html">yearBlockedFolds()</a></code> for the year-blocked models) has not improved for this many rounds, and the fold’s model keeps the best round (at most <code>xgbNrounds</code>). The fold is chosen with its own held-out rows, so its predictions on them are slightly optimistic.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ignitionYearClimate
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+CMDsm
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+The climate covariate whose yearly ELF mean scales each year’s expected ignitions, <code>exp(beta z)</code> with <code>beta &amp;gt;= 0</code> fitted to the out-of-year totals and <code>z</code> the standardised yearly mean (<code><a href="../reference/fitYearClimate.html">fitYearClimate()</a></code>); fixed for every ELF; revisit when all ELFs are fitted. With or without underscore (<code>CMD_sm</code> is <code>CMDsm</code>); stops if it is not a column of <code>fireSense_ignitionCovariates</code>. <code>NA</code>: no term.
 </td>
 <td style="text-align:left;">
 TRUE

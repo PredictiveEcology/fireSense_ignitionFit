@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
 subtitle: "v.1.2.0.9014"
-date: "Last updated: 2026-11-18"
+date: "Last updated: 2026-11-20"
 output:
   bookdown::html_document2:
     toc: true
@@ -297,6 +297,15 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> `NA` (default): off, every fold boosts `xgbNrounds` rounds. A number of rounds: each fold's boosting stops once the Poisson loss of its held-out rows (`cvFolds()`, or the whole years of `yearBlockedFolds()` for the year-blocked models) has not improved for this many rounds, and the fold's model keeps the best round (at most `xgbNrounds`). The fold is chosen with its own held-out rows, so its predictions on them are slightly optimistic. </td>
+   <td style="text-align:left;"> TRUE </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ignitionYearClimate </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> CMDsm </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> The climate covariate whose yearly ELF mean scales each year's expected ignitions, `exp(beta z)` with `beta &gt;= 0` fitted to the out-of-year totals and `z` the standardised yearly mean (`fitYearClimate()`); fixed for every ELF; revisit when all ELFs are fitted. With or without underscore (`CMD_sm` is `CMDsm`); stops if it is not a column of `fireSense_ignitionCovariates`. `NA`: no term. </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>

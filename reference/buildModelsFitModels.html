@@ -80,7 +80,8 @@
 <code>model</code> (from <code><a href="buildModel.html">buildModel()</a></code>), <code>rescales</code>, <code>fittingRes</code> (resolution of <code>ignitionFitRTM</code>),
 <code>lambdaRescaleFactor</code> (rows of covariates / non-NA cells of <code>ignitionFitRTM</code>) and <code>yearSD</code>, the sd
 of the year effect on the predicted mean (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/yearEffect.html" class="external-link">fireSenseUtils::yearEffectSD()</a></code> of the out-of-fold
-<code>model$yearTotals</code>), which <code>fireSense_burn</code> draws each year, with one z shared by ignitions, escapes and spread,
+<code>model$yearTotals</code>, for ignitions after the year climate term), <code>yearClimate</code> (ignitions only, absent
+when <code>ignitionYearClimate</code> is <code>NA</code>: <code><a href="fitYearClimate.html">fitYearClimate()</a></code>), which <code>fireSense_burn</code> draws each year, with one z shared by ignitions, escapes and spread,
 and <code>concentration</code> (<code><a href="concentrationOf.html">concentrationOf()</a></code>, logged by <code><a href="concentrationMessage.html">concentrationMessage()</a></code>).</p>
     </div>
 

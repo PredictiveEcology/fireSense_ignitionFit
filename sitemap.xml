@@ -14,6 +14,7 @@
 <url><loc>/reference/buildModel.html</loc></url>
 <url><loc>/reference/buildModelCallees.html</loc></url>
 <url><loc>/reference/buildModelsFitModels.html</loc></url>
+<url><loc>/reference/calendarYearOf.html</loc></url>
 <url><loc>/reference/chainMessage.html</loc></url>
 <url><loc>/reference/chainedEscapeFactor.html</loc></url>
 <url><loc>/reference/concentrationMessage.html</loc></url>
@@ -26,6 +27,7 @@
 <url><loc>/reference/exposureOf.html</loc></url>
 <url><loc>/reference/fitCovariates.html</loc></url>
 <url><loc>/reference/fitFoldXgboost.html</loc></url>
+<url><loc>/reference/fitYearClimate.html</loc></url>
 <url><loc>/reference/fittedYearEffects.html</loc></url>
 <url><loc>/reference/foldsLackPositives.html</loc></url>
 <url><loc>/reference/frequencyFitRun.html</loc></url>
@@ -53,5 +55,7 @@
 <url><loc>/reference/xgbSettings.html</loc></url>
 <url><loc>/reference/xgbSettingsOfParams.html</loc></url>
 <url><loc>/reference/yearBlockedFolds.html</loc></url>
+<url><loc>/reference/yearClimateMeansOf.html</loc></url>
+<url><loc>/reference/yearClimateRowMultiplier.html</loc></url>
 </urlset>
 
