@@ -4,7 +4,7 @@
 #' observed ignitions of year `y` (`yearTotals`) and `z_y` is the standardised yearly mean of `variable`
 #' (`fireSenseUtils::yearClimateMeans()` of the raw covariates, the unweighted mean over the rows with the variable and with core (`coreFraction` above 0): centre is the mean over the fit years of the yearly
 #' means, scale their sd). `beta` is the coefficient of
-#' `glm(observed ~ 0 + z, offset = log(predicted * sum(observed) / sum(predicted)), family = poisson)`, floored at 0:
+#' `glm(observed ~ 0 + z, offset = log(scaleToObservedLevel(observed, predicted)), family = poisson)`, floored at 0:
 #' the offset removes the overall level gap, as `fireSenseUtils::yearEffectSD()` does, so `beta` is only the
 #' year-to-year response. `norm` is the mean of `exp(beta * z_y)` over the fit years, so the multiplier averages 1
 #' over them. `beta` is 0 (with a message) if there are fewer than 2 years with a mean, the means do not vary, nothing
@@ -17,6 +17,10 @@
 #' @return `list(variable, center, scale, beta, norm)`, `variable` being the covariate's column name.
 fitYearClimate <- function(variable, raw, yearTotals) {
   variable <- fireSenseUtils::yearClimateColumn(variable, names(raw))
+  if (is.null(raw[[fireSenseUtils::coreFractionTxt]]))
+    warning("fireSense_ignitionFit: the ignition covariates have no `", fireSenseUtils::coreFractionTxt, "` column, so the ",
+            "year climate mean is over every pixel, while fireSense_ignitionPredict averages the core pixels only ",
+            "(fireSense_dataPrepFit adds the column).", call. = FALSE)
   m <- fireSenseUtils::yearClimateMeans(raw, variable)
   scale <- stats::sd(m$mean)
   noTerm <- function(why) {
@@ -33,7 +37,7 @@ fitYearClimate <- function(variable, raw, yearTotals) {
   d <- d[stats::complete.cases(d) & d$predicted > 0, ]
   if (nrow(d) == 0L || sum(d$observed) <= 0) return(noTerm("nothing observed or expected"))
   b <- tryCatch(suppressWarnings(unname(stats::coef(
-    stats::glm(observed ~ 0 + z, offset = log(predicted * sum(observed) / sum(predicted)), family = stats::poisson,
+    stats::glm(observed ~ 0 + z, offset = log(fireSenseUtils::scaleToObservedLevel(observed, predicted)), family = stats::poisson,
                data = d))["z"])), error = function(e) NA_real_)
   if (!is.finite(b)) return(noTerm("the glm failed"))
   beta <- max(0, b)

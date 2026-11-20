@@ -79,6 +79,13 @@ test_that("NA in the covariate, or a year with no rows, never gives a non-finite
   expect_message(fitYearClimate("CMDsm", syntheticClimate(), NULL), "no year climate term")
 })
 
+test_that("raw covariates without coreFraction give a warning: the mean would be over the buffer too", {
+  raw <- syntheticClimate(); data.table::set(raw, NULL, "coreFraction", NULL)
+  yt <- data.frame(year = 2001:2005, observed = c(10, 20, 30, 40, 50), predicted = 30)
+  expect_warning(fitYearClimate("CMDsm", raw, yt), "no `coreFraction` column")
+  expect_no_warning(fitYearClimate("CMDsm", syntheticClimate(), yt))
+})
+
 test_that("calendarYearOf stops when a year is not among the covariates' years", {
   expect_error(calendarYearOf(c(0, 0.5), c(0, 1), c(2001, 2002)), "1 of 2 years")
 })
