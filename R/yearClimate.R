@@ -2,7 +2,7 @@
 #'
 #' Fits `E[O_y] = P_y * exp(beta * z_y) / norm`, `beta >= 0`, where `P_y` and `O_y` are the out-of-year predicted and
 #' observed ignitions of year `y` (`yearTotals`) and `z_y` is the standardised yearly mean of `variable`
-#' (`fireSenseUtils::yearClimateMeans()` of the raw covariates: centre is the mean over the fit years of the yearly
+#' (`fireSenseUtils::yearClimateMeans()` of the raw covariates, the unweighted mean over the rows with the variable and with core (`coreFraction` above 0): centre is the mean over the fit years of the yearly
 #' means, scale their sd). `beta` is the coefficient of
 #' `glm(observed ~ 0 + z, offset = log(predicted * sum(observed) / sum(predicted)), family = poisson)`, floored at 0:
 #' the offset removes the overall level gap, as `fireSenseUtils::yearEffectSD()` does, so `beta` is only the
