@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9182)", # 9182: yearClimateColumn(), yearClimateMeans(), yearClimateMultiplier(); 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9183)", # 9183: scaleToObservedLevel(), yearClimateMeans(covariates, variable) unweighted over core rows, yearClimateMultiplier() norm; 9182: yearClimateColumn(), yearClimateMeans(), yearClimateMultiplier(); 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
                   "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -432,7 +432,7 @@ buildModelsFitModels <- function(igOrEsc, sim) {
   ## the year climate term of the ignitions; `yearSD` is the spread left after it
   yearClimate <- NULL
   yearTotals <- modelHere$yearTotals
-  if (identical(igOrEsc, "ignition") && !is.na(Par$ignitionYearClimate)) {
+  if (identical(igOrEsc, "ignition") && length(Par$ignitionYearClimate) == 1L && !is.na(Par$ignitionYearClimate)) {
     raw <- sim$fireSense_ignitionCovariates
     if (!is.null(yearTotals))
       yearTotals$year <- calendarYearOf(yearTotals$year, data$covariates[[fireSenseUtils::yearTxt]], raw[[fireSenseUtils::yearTxt]])

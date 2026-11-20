@@ -1,17 +1,17 @@
-## The year climate term of the ignitions: E[O_y] = P_y * exp(beta * z_y), beta >= 0, z_y the standardised
+## The year climate term of the ignitions: E[O_y] = P_y * exp(beta * z_y) / norm, beta >= 0, z_y the standardised
 ## yearly mean of `CMDsm` (fitYearClimate(), yearClimateRowMultiplier()), and what it does to the fit.
 
 ## 5 years x 3 pixels. The yearly mean of `CMDsm` is 1, 2, 3, 4, 5 on the pixels that count (coreFraction 1) and
-## is dragged to 100 by the pixel outside the core (coreFraction 0).
+## is not changed by the pixel outside the core (coreFraction 0, CMDsm 100).
 syntheticClimate <- function() {
   data.table::data.table(pixelID = rep(1:3, 5), year = rep(2001:2005, each = 3),
                          CMDsm = c(rbind(1:5, 1:5, 100)),
                          coreFraction = rep(c(1, 1, 0), 5), ignitions = 0L)
 }
 
-test_that("the z basis is the exposure-weighted yearly mean, centred and scaled over the fit years", {
+test_that("the z basis is the unweighted yearly mean, centred and scaled over the fit years", {
   raw <- syntheticClimate()
-  m <- yearClimateMeansOf(raw, "CMD_sm")
+  m <- fireSenseUtils::yearClimateMeans(raw, "CMD_sm")
   expect_equal(m$year, 2001:2005)
   expect_equal(m$mean, as.numeric(1:5))
   yt <- data.frame(year = 2001:2005, observed = c(10, 20, 30, 40, 50), predicted = 30)
@@ -20,7 +20,20 @@ test_that("the z basis is the exposure-weighted yearly mean, centred and scaled 
   expect_equal(yc$center, 3)
   expect_equal(yc$scale, stats::sd(1:5))
   expect_equal(yearClimateRowMultiplier(yc, raw)[raw$pixelID == 1],
-               exp(yc$beta * (1:5 - 3) / stats::sd(1:5)))
+               exp(yc$beta * (1:5 - 3) / stats::sd(1:5)) / yc$norm)
+})
+
+test_that("covariates built from the fit table for one year give the fit's multiplier for that year", {
+  ## what fireSense_ignitionPredict is given: that year's rows, with an NA row, as the fit table has
+  raw <- syntheticClimate()
+  data.table::set(raw, 4L, "CMDsm", NA_real_)      # a pixel of 2002 with no CMDsm
+  yt <- data.frame(year = 2001:2005, observed = c(10, 20, 30, 40, 50), predicted = 30)
+  yc <- fitYearClimate("CMDsm", raw, yt)
+  for (y in c(2001, 2003, 2005)) {
+    covs <- raw[raw$year == y, ]
+    expect_equal(fireSenseUtils::yearClimateMultiplier(yc, fireSenseUtils::yearClimateMeans(covs, "CMDsm")$mean),
+                 yearClimateRowMultiplier(yc, raw)[raw$year == y][1])
+  }
 })
 
 test_that("beta is the Poisson fit on the out-of-year totals, and never below 0", {
@@ -28,6 +41,9 @@ test_that("beta is the Poisson fit on the out-of-year totals, and never below 0"
   z <- (1:5 - 3) / stats::sd(1:5)
   up <- data.frame(year = 2001:2005, predicted = 100, observed = round(100 * exp(0.4 * z)))
   expect_equal(fitYearClimate("CMDsm", raw, up)$beta, 0.4, tolerance = 0.05)
+  ## a level gap (observed 2.5 times predicted in every year) is not climate: beta is the same
+  expect_equal(fitYearClimate("CMDsm", raw, transform(up, observed = round(250 * exp(0.4 * z))))$beta, 0.4, tolerance = 0.05)
+  expect_identical(fitYearClimate("CMDsm", raw, transform(up, observed = 250))$beta, 0)
   down <- data.frame(year = 2001:2005, predicted = 100, observed = round(100 * exp(-0.4 * z)))
   expect_identical(fitYearClimate("CMDsm", raw, down)$beta, 0)
 })
@@ -37,6 +53,41 @@ test_that("beta is 0 when nothing is observed or expected, or there are no total
   expect_identical(fitYearClimate("CMDsm", raw, data.frame(year = 2001:2005, observed = 0, predicted = 5))$beta, 0)
   expect_identical(fitYearClimate("CMDsm", raw, data.frame(year = 2001:2005, observed = 5, predicted = 0))$beta, 0)
   expect_identical(fitYearClimate("CMDsm", raw, NULL)$beta, 0)
+})
+
+test_that("the multiplier averages 1 over the fit years (norm)", {
+  raw <- syntheticClimate()
+  z <- (1:5 - 3) / stats::sd(1:5)
+  yc <- fitYearClimate("CMDsm", raw, data.frame(year = 2001:2005, predicted = 100, observed = round(100 * exp(0.4 * z))))
+  expect_gt(yc$beta, 0)
+  expect_equal(mean(yearClimateRowMultiplier(yc, raw, 2001:2005)), 1)
+})
+
+test_that("NA in the covariate, or a year with no rows, never gives a non-finite centre or scale", {
+  raw <- syntheticClimate()
+  data.table::set(raw, which(raw$year == 2003), "CMDsm", NA_real_)    # no row left in 2003
+  data.table::set(raw, 1L, "CMDsm", NA_real_)                          # one row of 2001 left
+  yt <- data.frame(year = 2001:2005, observed = c(10, 20, 30, 40, 50), predicted = 30)
+  yc <- fitYearClimate("CMDsm", raw, yt)
+  expect_true(all(is.finite(unlist(yc[c("center", "scale", "beta", "norm")]))))
+  expect_equal(yc$center, mean(c(1, 2, 4, 5)))
+  expect_equal(yearClimateRowMultiplier(yc, raw, 2003), 1)             # a year without a mean: no term
+  ## nothing usable: no term, with a message, and finite
+  allNA <- syntheticClimate(); data.table::set(allNA, NULL, "CMDsm", NA_real_)
+  expect_message(yc0 <- fitYearClimate("CMDsm", allNA, yt), "no year climate term")
+  expect_identical(c(yc0$beta, yc0$norm, yc0$center, yc0$scale), c(0, 1, 0, 1))
+  expect_message(fitYearClimate("CMDsm", syntheticClimate(), NULL), "no year climate term")
+})
+
+test_that("raw covariates without coreFraction give a warning: the mean would be over the buffer too", {
+  raw <- syntheticClimate(); data.table::set(raw, NULL, "coreFraction", NULL)
+  yt <- data.frame(year = 2001:2005, observed = c(10, 20, 30, 40, 50), predicted = 30)
+  expect_warning(fitYearClimate("CMDsm", raw, yt), "no `coreFraction` column")
+  expect_no_warning(fitYearClimate("CMDsm", syntheticClimate(), yt))
+})
+
+test_that("calendarYearOf stops when a year is not among the covariates' years", {
+  expect_error(calendarYearOf(c(0, 0.5), c(0, 1), c(2001, 2002)), "1 of 2 years")
 })
 
 test_that("a variable that is not a covariate stops", {
@@ -97,10 +148,10 @@ test_that("the fit stores yearClimate, maps the standardised years, and NA leave
   withTerm <- fitWith(list())
   without <- fitWith(list(ignitionYearClimate = NA_character_))
   yc <- withTerm$fireSense_IgnitionFitted$modelList$yearClimate
-  expect_named(yc, c("variable", "center", "scale", "beta"))
+  expect_named(yc, c("variable", "center", "scale", "beta", "norm"))
   expect_identical(yc$variable, "CMDsm")
   expect_gt(yc$beta, 0)
-  m <- yearClimateMeansOf(climateYears(), "CMDsm")
+  m <- fireSenseUtils::yearClimateMeans(climateYears(), "CMDsm")
   expect_equal(c(yc$center, yc$scale), c(mean(m$mean), stats::sd(m$mean)))
 
   ## NA: no yearClimate, the names are the ones of a fit made before the parameter
@@ -118,6 +169,15 @@ test_that("the fit stores yearClimate, maps the standardised years, and NA leave
   ei0 <- without$fireSense_IgnitionFitted$modelList$yearEffects
   expect_equal(ei$expected / ei0$expected,
                fireSenseUtils::yearClimateMultiplier(yc, m$mean[match(ei$year, m$year)]))
+})
+
+test_that("rescaleVars = FALSE gives the same term as the standardised fit, and a logical NA is no term", {
+  yc <- fitWith(list())$fireSense_IgnitionFitted$modelList$yearClimate
+  raw <- fitWith(list(rescaleVars = FALSE))$fireSense_IgnitionFitted$modelList$yearClimate
+  expect_equal(raw[c("variable", "center", "scale")], yc[c("variable", "center", "scale")])
+  expect_gt(raw$beta, 0)
+  expect_equal(raw$beta, yc$beta, tolerance = 0.05)
+  expect_null(fitWith(list(ignitionYearClimate = NA))$fireSense_IgnitionFitted$modelList$yearClimate)
 })
 
 test_that("a year climate variable that is not a covariate stops the fit", {
