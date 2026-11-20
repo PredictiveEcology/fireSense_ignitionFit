@@ -42,7 +42,7 @@ test_that("parameters are the expected names", {
     sort(c(".neverCache", ".plots", ".runInitialTime", ".runInterval", ".seed", ".studyAreaName", ".useCache",
            "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
            "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting", "doFit", "escapeSizeHa", "fireCauses",
-           "xgbMaxDepth", "xgbLearningRate", "xgbNrounds", "xgbRegLambda", "xgbEarlyStopping"))
+           "xgbMaxDepth", "xgbLearningRate", "xgbNrounds", "xgbRegLambda", "xgbEarlyStopping", "ignitionYearClimate"))
   )
 })
 
@@ -54,7 +54,7 @@ test_that("parameters have the expected classes and defaults", {
     classes[order(names(classes))],
     c(.neverCache = "character", .plots = "character", .runInitialTime = "numeric", .runInterval = "numeric",
       .seed = "list", .studyAreaName = "character", .useCache = "logical", crossValType = "character",
-      doFit = "logical", escapeSizeHa = "numeric", fireCauses = "character", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character",
+      doFit = "logical", escapeSizeHa = "numeric", fireCauses = "character", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character", ignitionYearClimate = "character",
       modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
       whichProcessesToFit = "character", xgbEarlyStopping = "numeric", xgbLearningRate = "numeric",
       xgbMaxDepth = "numeric", xgbNrounds = "numeric", xgbRegLambda = "numeric")
@@ -75,6 +75,7 @@ test_that("parameters have the expected classes and defaults", {
   expect_identical(c(default("xgbMaxDepth"), default("xgbLearningRate"), default("xgbNrounds"), default("xgbRegLambda")),
                    c(2, 0.15, 100, 0.5))                  # the values the fits were hard-coded with
   expect_true(is.na(default("xgbEarlyStopping")))        # off
+  expect_identical(default("ignitionYearClimate"), "CMDsm")
   expect_identical(default("ignitionFitGoogleDriveFolder"),
                    fireSenseUtils::ignitionFitLedgerFolder())
   ## no parameter has bounds any more

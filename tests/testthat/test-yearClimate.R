@@ -1,0 +1,125 @@
+## The year climate term of the ignitions: E[O_y] = P_y * exp(beta * z_y), beta >= 0, z_y the standardised
+## yearly mean of `CMDsm` (fitYearClimate(), yearClimateRowMultiplier()), and what it does to the fit.
+
+## 5 years x 3 pixels. The yearly mean of `CMDsm` is 1, 2, 3, 4, 5 on the pixels that count (coreFraction 1) and
+## is dragged to 100 by the pixel outside the core (coreFraction 0).
+syntheticClimate <- function() {
+  data.table::data.table(pixelID = rep(1:3, 5), year = rep(2001:2005, each = 3),
+                         CMDsm = c(rbind(1:5, 1:5, 100)),
+                         coreFraction = rep(c(1, 1, 0), 5), ignitions = 0L)
+}
+
+test_that("the z basis is the exposure-weighted yearly mean, centred and scaled over the fit years", {
+  raw <- syntheticClimate()
+  m <- yearClimateMeansOf(raw, "CMD_sm")
+  expect_equal(m$year, 2001:2005)
+  expect_equal(m$mean, as.numeric(1:5))
+  yt <- data.frame(year = 2001:2005, observed = c(10, 20, 30, 40, 50), predicted = 30)
+  yc <- fitYearClimate("CMDsm", raw, yt)
+  expect_identical(yc$variable, "CMDsm")
+  expect_equal(yc$center, 3)
+  expect_equal(yc$scale, stats::sd(1:5))
+  expect_equal(yearClimateRowMultiplier(yc, raw)[raw$pixelID == 1],
+               exp(yc$beta * (1:5 - 3) / stats::sd(1:5)))
+})
+
+test_that("beta is the Poisson fit on the out-of-year totals, and never below 0", {
+  raw <- syntheticClimate()
+  z <- (1:5 - 3) / stats::sd(1:5)
+  up <- data.frame(year = 2001:2005, predicted = 100, observed = round(100 * exp(0.4 * z)))
+  expect_equal(fitYearClimate("CMDsm", raw, up)$beta, 0.4, tolerance = 0.05)
+  down <- data.frame(year = 2001:2005, predicted = 100, observed = round(100 * exp(-0.4 * z)))
+  expect_identical(fitYearClimate("CMDsm", raw, down)$beta, 0)
+})
+
+test_that("beta is 0 when nothing is observed or expected, or there are no totals", {
+  raw <- syntheticClimate()
+  expect_identical(fitYearClimate("CMDsm", raw, data.frame(year = 2001:2005, observed = 0, predicted = 5))$beta, 0)
+  expect_identical(fitYearClimate("CMDsm", raw, data.frame(year = 2001:2005, observed = 5, predicted = 0))$beta, 0)
+  expect_identical(fitYearClimate("CMDsm", raw, NULL)$beta, 0)
+})
+
+test_that("a variable that is not a covariate stops", {
+  expect_error(fitYearClimate("CMDfoo", syntheticClimate(), NULL), "not among the covariates")
+})
+
+test_that("calendarYearOf maps standardised years, also through rownames(), and does not assume every year has rows", {
+  raw <- c(2001, 2001, 2003, 2003, 2007)
+  fit <- (raw - mean(raw)) / stats::sd(raw)
+  through <- as.numeric(rownames(rowsum(rep(1, 5), fit)))   # as outOfFoldYearTotals() makes them
+  expect_identical(calendarYearOf(through, fit, raw), c(2001, 2003, 2007))
+  expect_identical(calendarYearOf(2003, 2003, 2003), 2003)  # rescaleVars FALSE
+})
+
+test_that("no term is a multiplier of 1", {
+  expect_equal(yearClimateRowMultiplier(NULL, syntheticClimate()), rep(1, 15))
+})
+
+test_that("yearSD shrinks when the climate term explains the totals", {
+  raw <- syntheticClimate()
+  z <- (1:5 - 3) / stats::sd(1:5)
+  yt <- data.frame(year = 2001:2005, predicted = 1000)
+  yt$observed <- round(1000 * exp(0.5 * z))
+  yc <- fitYearClimate("CMDsm", raw, yt)
+  withTerm <- fireSenseUtils::yearEffectSD(yt$observed, yt$predicted * yearClimateRowMultiplier(yc, raw, yt$year))
+  expect_lt(withTerm, fireSenseUtils::yearEffectSD(yt$observed, yt$predicted) / 3)
+})
+
+## The yearly mean of CMDsm falls with the year (3.5 down to 0.5) and the ignitions fall with it, 8:4:2:1, at the
+## same pixel pattern: out of year the model under-predicts the dry first year most, so beta > 0.
+climateYears <- function() {
+  dt <- makeIgnitionCovariates()
+  k <- c(8, 4, 2, 1)[match(dt$year, 2001:2004)]
+  data.table::set(dt, NULL, "ignitions", as.integer((dt$youngAge == 1 & dt$pixelID %% 3 == 0) * k))
+  data.table::set(dt, NULL, "CMDsm", dt$CMDsm * 0.1 + (2004 - dt$year))
+  dt
+}
+
+fitWith <- function(par) {
+  esc <- climateYears()
+  data.table::set(esc, NULL, "escapes", as.integer(esc$ignitions > 0 & esc$lightning >= 6))
+  root <- withr::local_tempdir(.local_envir = parent.frame())
+  paths <- testPaths
+  paths$cachePath <- file.path(root, "cache")
+  paths$outputPath <- file.path(root, "outputs")
+  sim <- NULL
+  utils::capture.output(suppressWarnings(suppressMessages({
+    sim <- SpaDES.core::simInit(times = list(start = 1, end = 1), modules = moduleName, paths = paths,
+                                objects = list(fireSense_ignitionCovariates = climateYears(), fireSense_escapeCovariates = esc,
+                                               ignitionFitRTM = makeIgnitionFitRTM()),
+                                params = stats::setNames(list(testParams(c(list(.plots = NA), par))), moduleName))
+    sim <- SpaDES.core::spades(sim)
+  })))
+  sim
+}
+
+test_that("the fit stores yearClimate, maps the standardised years, and NA leaves the fit as before", {
+  withTerm <- fitWith(list())
+  without <- fitWith(list(ignitionYearClimate = NA_character_))
+  yc <- withTerm$fireSense_IgnitionFitted$modelList$yearClimate
+  expect_named(yc, c("variable", "center", "scale", "beta"))
+  expect_identical(yc$variable, "CMDsm")
+  expect_gt(yc$beta, 0)
+  m <- yearClimateMeansOf(climateYears(), "CMDsm")
+  expect_equal(c(yc$center, yc$scale), c(mean(m$mean), stats::sd(m$mean)))
+
+  ## NA: no yearClimate, the names are the ones of a fit made before the parameter
+  expect_null(without$fireSense_IgnitionFitted$modelList$yearClimate)
+  expect_identical(names(without$fireSense_IgnitionFitted$modelList),
+                   c("model", "rescales", "fittingRes", "lambdaRescaleFactor", "yearSD", "concentration", "yearEffects"))
+  ## the boosters do not depend on the term; yearSD is the spread left after it
+  yt <- without$fireSense_IgnitionFitted$modelList$model$yearTotals
+  expect_identical(without$fireSense_IgnitionFitted$modelList$yearSD, fireSenseUtils::yearEffectSD(yt$observed, yt$predicted))
+  expect_equal(withTerm$fireSense_IgnitionFitted$modelList$model$yearTotals, yt)
+  expect_lt(withTerm$fireSense_IgnitionFitted$modelList$yearSD, without$fireSense_IgnitionFitted$modelList$yearSD)
+
+  ## the fitted year effects are relative to the term: the expected totals are those of the fit without it times exp(beta z)
+  ei <- withTerm$fireSense_IgnitionFitted$modelList$yearEffects
+  ei0 <- without$fireSense_IgnitionFitted$modelList$yearEffects
+  expect_equal(ei$expected / ei0$expected,
+               fireSenseUtils::yearClimateMultiplier(yc, m$mean[match(ei$year, m$year)]))
+})
+
+test_that("a year climate variable that is not a covariate stops the fit", {
+  expect_error(fitWith(list(ignitionYearClimate = "CMDfoo")), "not among the covariates")
+})
