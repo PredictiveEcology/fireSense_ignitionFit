@@ -278,3 +278,11 @@ test_that("the hinge and the weights reach both fits", {
   expect_true("beta2" %in% names(fit$fireSense_IgnitionFitted$modelList$yearClimate))
   expect_true("beta2" %in% names(fit$fireSense_EscapeFitted$modelList$yearClimate))
 })
+
+test_that("fitYearClimate records the weights only when they are not equal", {
+  raw <- syntheticClimate()
+  yt <- data.frame(year = 2001:2005, predicted = 1e4, observed = round(1e4 * exp(c(0, 0, 0, 0.1, 0.9))))
+  expect_null(suppressMessages(fitYearClimate("CMDsm", raw, yt))$weights)
+  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, yt, weights = "climate"))$weights, "climate")
+  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, NULL, weights = "climate"))$weights, "climate")
+})

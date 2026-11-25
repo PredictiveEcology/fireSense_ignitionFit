@@ -22,9 +22,10 @@
 #'   when `rescaleVars`, so map it with `calendarYearOf()` first), `observed`, `predicted`; or `NULL`.
 #' @param hinge `TRUE`: also fit `beta2`, the extra slope of the dry half (`z > 0`).
 #' @param weights `"equal"` (every year counts the same) or `"climate"` (`yearClimateWeights()`).
-#' @return `list(variable, center, scale, beta, norm)` (`beta2` after `norm` with `hinge`), `variable` being the
+#' @return `list(variable, center, scale, beta, norm)` (`beta2` after `norm` with `hinge`, then `weights` when not `"equal"`), `variable` being the
 #'   covariate's column name.
 fitYearClimate <- function(variable, raw, yearTotals, hinge = FALSE, weights = "equal") {
+  weights <- match.arg(weights, c("equal", "climate"))
   variable <- fireSenseUtils::yearClimateColumn(variable, names(raw))
   if (is.null(raw[[fireSenseUtils::coreFractionTxt]]))
     warning("fireSense_ignitionFit: the ignition covariates have no `", fireSenseUtils::coreFractionTxt, "` column, so the ",
@@ -37,6 +38,7 @@ fitYearClimate <- function(variable, raw, yearTotals, hinge = FALSE, weights = "
     yc <- list(variable = variable, center = if (nrow(m)) mean(m$mean) else 0,
                scale = if (is.finite(scale) && scale > 0) scale else 1, beta = 0, norm = 1)
     if (hinge) yc$beta2 <- 0
+    if (weights != "equal") yc$weights <- weights
     yc
   }
   if (nrow(m) < 2L || !is.finite(scale) || scale <= 0)
@@ -81,7 +83,8 @@ fitYearClimate <- function(variable, raw, yearTotals, hinge = FALSE, weights = "
   yc <- list(variable = variable, center = center, scale = scale, beta = beta)
   if (hinge) yc$beta2 <- beta2
   yc$norm <- mean(fireSenseUtils::yearClimateMultiplier(yc, m$mean))
-  yc[c("variable", "center", "scale", "beta", "norm", if (hinge) "beta2")]
+  if (weights != "equal") yc$weights <- weights   # recorded so a stored fit can be compared with a run's settings
+  yc[c("variable", "center", "scale", "beta", "norm", if (hinge) "beta2", if (weights != "equal") "weights")]
 }
 
 #' The weights of the years in the fit of the year climate term
@@ -131,4 +134,38 @@ calendarYearOf <- function(year, fitYear, rawYear) {
     stop("fireSense_ignitionFit: ", sum(is.na(out)), " of ", length(year), " years of the out-of-year totals are not ",
          "among the years of the covariates, so the year climate term cannot be fitted.", call. = FALSE)
   out
+}
+
+#' Does a stored fit's year climate term differ from this run's settings?
+#'
+#' A fit stored in the ledger carries the term it was made with (`modelList$yearClimate`; `beta2` with
+#' `yearClimateHinge`, `weights` with `yearClimateWeights = "climate"`). The escape term must be there exactly when
+#' `escapeYearClimate` is set (same variable, with or without underscores). Where both the stored fit and this run have a
+#' term, `yearClimateHinge` and `yearClimateWeights` must agree. A fit stored before these parameters existed has
+#' neither `beta2`, `weights` nor an escape term: it matches only their defaults.
+#'
+#' @param fitted A stored `list(modelList = ...)`, or `NULL`.
+#' @param igOrEsc `"ignition"` or `"escape"`.
+#' @param par The module's parameters (`P(sim)`): `ignitionYearClimate`, `escapeYearClimate`, `yearClimateHinge`,
+#'   `yearClimateWeights`.
+#' @return `NULL` if they agree, else a sentence saying how they differ.
+storedYearClimateProblem <- function(fitted, igOrEsc, par) {
+  yc <- fitted$modelList$yearClimate
+  variable <- par[[paste0(igOrEsc, "YearClimate")]]
+  want <- length(variable) == 1L && !is.na(variable)
+  squash <- function(x) gsub("_", "", x, fixed = TRUE)
+  if (igOrEsc == "escape" && want != !is.null(yc))
+    return(paste0("it has ", if (is.null(yc)) "no" else "an", " year climate term, but `escapeYearClimate` is ",
+                  if (want) paste0("\"", variable, "\"") else "NA"))
+  if (igOrEsc == "escape" && want && !identical(squash(yc$variable), squash(variable)))
+    return(paste0("its year climate term is of ", yc$variable, ", but `escapeYearClimate` is \"", variable, "\""))
+  if (!want || is.null(yc)) return(NULL)
+  if (!identical(!is.null(yc$beta2), isTRUE(par$yearClimateHinge)))
+    return(paste0("it was fitted ", if (is.null(yc$beta2)) "without" else "with", " the year climate hinge, but ",
+                  "`yearClimateHinge` is ", isTRUE(par$yearClimateHinge)))
+  stored <- if (is.null(yc$weights)) "equal" else yc$weights
+  now <- if (is.null(par$yearClimateWeights)) "equal" else par$yearClimateWeights
+  if (!identical(stored, now))
+    return(paste0("its year climate term was fitted with `yearClimateWeights = \"", stored, "\"`, but this run's is \"", now, "\""))
+  NULL
 }

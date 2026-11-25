@@ -153,10 +153,10 @@ test_that("doFit = TRUE fits again even when the ledger already has a row", {
 ## Does a run fit? A run that reuses the ledger's fit says so; a run that fits writes its row. A ledger is
 ## seeded first when wanted. (buildModelsFitModels() cannot be counted by mocking: the module calls it from
 ## its own environment.)
-fitsInRun <- function(paths, params, ledger) {
+fitsInRun <- function(paths, params, ledger, seed = list()) {
   commonParams <- list(.plots = NA, ignitionFitGoogleDriveFolder = NULL)
   objs <- list(.ELFind = "6.1.1", studyArea = studyAreaToy())
-  if (ledger) runIgnitionModule(paths, params = commonParams, objects = objs)
+  if (ledger) runIgnitionModule(paths, params = c(commonParams, seed), objects = objs)
   msgs <- new.env()
   out <- try(runIgnitionModule(paths, params = c(commonParams, params), objects = objs, msgs = msgs), silent = TRUE)
   failed <- inherits(out, "try-error")
@@ -440,4 +440,42 @@ test_that("without fit data, ignitionFitFilename = \"latest\" reads the newest r
   ## the run's escape definition, so a fit made under another is skipped
   expect_identical(called, list(cloudFolderID = "folderID", polygonIDs = "6.1.1",
                                 escapeDefinition = fireSenseUtils::escapeDefinition()))
+})
+
+test_that("a stored fit is reused only by a run with the same year climate settings, in both directions", {
+  esc <- list(escapeYearClimate = "CMDsm")
+  hinge <- list(yearClimateHinge = TRUE)
+  wts <- list(yearClimateWeights = "climate")
+  reuse <- function(seed, run) fitsInRun(localLedgerPaths(), c(list(doFit = NA), run), ledger = TRUE, seed = seed)
+  expect_identical(reuse(list(), list())$fits, 0L)                 # the same settings
+  expect_identical(reuse(esc, esc)$fits, 0L)
+  expect_identical(reuse(c(esc, hinge, wts), c(esc, hinge, wts))$fits, 0L)
+  for (case in list(list(list(), esc), list(esc, list()),                       # an escape term set, or dropped
+                    list(list(), hinge), list(hinge, list()),
+                    list(list(), wts), list(wts, list()),
+                    list(esc, c(esc, hinge)), list(c(esc, wts), esc))) {
+    r <- reuse(case[[1]], case[[2]])
+    expect_gt(r$fits, 0L)
+    expect_match(paste(r$msgs, collapse = "\n"), "Fitting again")
+  }
+})
+
+test_that("storedYearClimateProblem compares the escape term, the hinge and the weights", {
+  term <- function(...) list(modelList = list(yearClimate = list(variable = "CMDsm", center = 0, scale = 1, beta = 1, norm = 1, ...)))
+  none <- list(modelList = list())
+  par <- list(ignitionYearClimate = "CMDsm", escapeYearClimate = NA_character_, yearClimateHinge = FALSE, yearClimateWeights = "equal")
+  set <- function(...) modifyList(par, list(...))
+  expect_null(storedYearClimateProblem(term(), "ignition", par))
+  expect_null(storedYearClimateProblem(none, "escape", par))
+  expect_null(storedYearClimateProblem(none, "ignition", par))                  # a fit from before the ignition term
+  expect_match(storedYearClimateProblem(none, "escape", set(escapeYearClimate = "CMDsm")), "no year climate term")
+  expect_match(storedYearClimateProblem(term(), "escape", par), "escapeYearClimate. is NA")
+  expect_null(storedYearClimateProblem(term(), "escape", set(escapeYearClimate = "CMD_sm")))   # underscores do not matter
+  expect_match(storedYearClimateProblem(term(), "escape", set(escapeYearClimate = "lightning")), "term is of CMDsm")
+  expect_match(storedYearClimateProblem(term(beta2 = 0), "ignition", par), "with the year climate hinge")
+  expect_match(storedYearClimateProblem(term(), "ignition", set(yearClimateHinge = TRUE)), "without the year climate hinge")
+  expect_null(storedYearClimateProblem(term(beta2 = 0.1), "ignition", set(yearClimateHinge = TRUE)))
+  expect_match(storedYearClimateProblem(term(weights = "climate"), "ignition", par), "climate.*equal")
+  expect_match(storedYearClimateProblem(term(), "ignition", set(yearClimateWeights = "climate")), "equal.*climate")
+  expect_null(storedYearClimateProblem(term(weights = "climate"), "ignition", set(yearClimateWeights = "climate")))
 })
