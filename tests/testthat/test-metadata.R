@@ -43,7 +43,7 @@ test_that("parameters are the expected names", {
            "crossValType", "modelAlgorithm", "rescaleVars", "whichProcessesToFit",
            "ignitionFitGoogleDriveFolder", "ignitionFitFilename", "refitExisting", "doFit", "escapeSizeHa", "fireCauses",
            "xgbMaxDepth", "xgbLearningRate", "xgbNrounds", "xgbRegLambda", "xgbEarlyStopping", "ignitionYearClimate",
-           "escapeYearClimate", "yearClimateHinge", "yearClimateWeights"))
+           "escapeYearClimate", "yearClimateShape", "yearClimateWeights"))
   )
 })
 
@@ -58,7 +58,7 @@ test_that("parameters have the expected classes and defaults", {
       doFit = "logical", escapeSizeHa = "numeric", escapeYearClimate = "character", fireCauses = "character", ignitionFitFilename = "character", ignitionFitGoogleDriveFolder = "character", ignitionYearClimate = "character",
       modelAlgorithm = "character", refitExisting = "logical", rescaleVars = "logical",
       whichProcessesToFit = "character", xgbEarlyStopping = "numeric", xgbLearningRate = "numeric",
-      xgbMaxDepth = "numeric", xgbNrounds = "numeric", xgbRegLambda = "numeric", yearClimateHinge = "logical", yearClimateWeights = "character")
+      xgbMaxDepth = "numeric", xgbNrounds = "numeric", xgbRegLambda = "numeric", yearClimateShape = "character", yearClimateWeights = "character")
   )
 
   default <- function(name) p$default[[match(name, p$paramName)]]
@@ -78,7 +78,7 @@ test_that("parameters have the expected classes and defaults", {
   expect_true(is.na(default("xgbEarlyStopping")))        # off
   expect_identical(default("ignitionYearClimate"), "CMDsm")
   expect_true(is.na(default("escapeYearClimate")))   # no escape term: the escapes as before
-  expect_false(default("yearClimateHinge"))
+  expect_identical(default("yearClimateShape"), "loglinear")
   expect_identical(default("yearClimateWeights"), "equal")
   expect_identical(default("ignitionFitGoogleDriveFolder"),
                    fireSenseUtils::ignitionFitLedgerFolder())

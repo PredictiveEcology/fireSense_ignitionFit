@@ -110,9 +110,12 @@ defineModule(sim, list(
                     paste("As `ignitionYearClimate`, for the year's expected escapes: `exp(beta_e * z)`, `beta_e >= 0` fitted",
                           "to the escapes' out-of-year totals, with the same `z` (the yearly mean of the ignition covariates).",
                           "`NA` (default): no term, the escapes as before.")),
-    defineParameter("yearClimateHinge", "logical", FALSE, NA, NA,
-                    paste("`TRUE`: both year climate terms are `exp(beta * z + beta2 * max(0, z))`, `beta2 >= 0`, so the dry",
-                          "half can respond more steeply (`fitYearClimate()`). `FALSE`: `exp(beta * z)`.")),
+    defineParameter("yearClimateShape", "character", "loglinear", NA, NA,
+                    paste("The shape of both year climate terms. `\"loglinear\"` (default): `exp(beta * z)`, `beta >= 0`.",
+                          "`\"logistic\"`: an S-curve through its midpoint at `z = 0` (the ELF's average year),",
+                          "`1 + (ratio - 1) * plogis(k * z)` renormalised to mean 1 over the fit years, `k >= 0` and",
+                          "`ratio >= 1` fitted to the yearly totals; it saturates beyond the fit range and its upper level over",
+                          "the average is bounded at 3 times the largest observed year total over the mean (`fitYearClimate()`).")),
     defineParameter("yearClimateWeights", "character", "equal", NA, NA,
                     paste("How the fit years count in the fit of the year climate terms: `\"equal\"`, or `\"climate\"`: weight",
                           "`|z|` (at least 0.25), rescaled to mean 1, so the extreme years decide the slope",
@@ -451,7 +454,7 @@ buildModelsFitModels <- function(igOrEsc, sim) {
     ignitionRaw <- sim$fireSense_ignitionCovariates
     if (!is.null(yearTotals))
       yearTotals$year <- calendarYearOf(yearTotals$year, data$covariates[[fireSenseUtils::yearTxt]], raw[[fireSenseUtils::yearTxt]])
-    yearClimate <- fitYearClimate(variable, ignitionRaw, yearTotals, hinge = Par$yearClimateHinge, weights = Par$yearClimateWeights)
+    yearClimate <- fitYearClimate(variable, ignitionRaw, yearTotals, shape = Par$yearClimateShape, weights = Par$yearClimateWeights)
     if (!is.null(yearTotals))
       yearTotals$predicted <- yearTotals$predicted * yearClimateRowMultiplier(yearClimate, ignitionRaw, yearTotals$year)
   }

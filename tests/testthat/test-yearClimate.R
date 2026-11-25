@@ -184,14 +184,14 @@ test_that("a year climate variable that is not a covariate stops the fit", {
   expect_error(fitWith(list(ignitionYearClimate = "CMDfoo")), "not among the covariates")
 })
 
-## ---- the year climate term of the escapes, the hinge and the year weights ----
+## ---- the year climate term of the escapes, the logistic shape and the year weights ----
 
 test_that("the defaults give the term as before, to the last bit", {
   raw <- syntheticClimate()
   z <- (1:5 - 3) / stats::sd(1:5)
   yt <- data.frame(year = 2001:2005, predicted = c(900, 1100, 1000, 950, 1050))
   yt$observed <- round(yt$predicted * exp(0.4 * z + c(0.1, -0.1, 0, 0.05, -0.05)))
-  ## the code of the term before `hinge` and `weights` existed
+  ## the code of the term before `shape` and `weights` existed
   d <- data.frame(observed = yt$observed, predicted = yt$predicted, z = (1:5 - 3) / stats::sd(1:5))
   b <- unname(stats::coef(stats::glm(observed ~ 0 + z, offset = log(fireSenseUtils::scaleToObservedLevel(observed, predicted)),
                                      family = stats::poisson, data = d))["z"])
@@ -199,7 +199,7 @@ test_that("the defaults give the term as before, to the last bit", {
   old <- list(variable = "CMDsm", center = mean(m), scale = stats::sd(m), beta = beta,
               norm = mean(exp(beta * (m - mean(m)) / stats::sd(m))))
   expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, yt)), old)
-  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, yt, hinge = FALSE, weights = "equal")), old)
+  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, yt, shape = "loglinear", weights = "equal")), old)
   expect_identical(fireSenseUtils::yearClimateMultiplier(old, m), exp(old$beta * (m - old$center) / old$scale) / old$norm)
 })
 
@@ -217,23 +217,38 @@ test_that("an escape term is fitted to the escapes' totals with the ignitions' y
                fireSenseUtils::yearClimateMultiplier(yc, c(2, 5)))
 })
 
-test_that("the hinge fits a steeper dry half, and beta2 stays at 0 when the response is straight or flat when wet", {
+test_that("the logistic shape recovers a known S-curve, saturates beyond the fit range, and is flat for a flat response", {
   raw <- syntheticClimate()
   z <- (1:5 - 3) / stats::sd(1:5)
   yt <- data.frame(year = 2001:2005, predicted = 1e5)
-  kink <- transform(yt, observed = 1e5 * exp(0.2 * z + 0.6 * pmax(0, z)))
-  yc <- suppressMessages(fitYearClimate("CMDsm", raw, kink, hinge = TRUE))
-  expect_named(yc, c("variable", "center", "scale", "beta", "norm", "beta2"))
-  expect_equal(c(yc$beta, yc$beta2), c(0.2, 0.6), tolerance = 0.02)
-  expect_equal(mean(fireSenseUtils::yearClimateMultiplier(yc, 1:5)), 1)
-  flatWet <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e5 * exp(0.5 * pmax(0, z))), hinge = TRUE))
-  expect_equal(c(flatWet$beta, flatWet$beta2), c(0, 0.5), tolerance = 0.02)
-  straight <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e5 * exp(0.4 * z)), hinge = TRUE))
-  expect_equal(c(straight$beta, straight$beta2), c(0.4, 0), tolerance = 0.02)
-  falling <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e5 * exp(-0.4 * z)), hinge = TRUE))
-  expect_equal(c(falling$beta, falling$beta2), c(0, 0))
-  expect_equal(falling$norm, 1)
-  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, NULL, hinge = TRUE))$beta2, 0)
+  curve <- transform(yt, observed = round(1e5 * (1 + 3 * stats::plogis(3 * z))))      # k = 3, ratio = 4
+  yc <- suppressMessages(fitYearClimate("CMDsm", raw, curve, shape = "logistic"))
+  expect_named(yc, c("variable", "center", "scale", "shape", "k", "ratio", "norm"))
+  expect_identical(yc$shape, "logistic")
+  expect_equal(c(yc$k, yc$ratio), c(3, 4), tolerance = 0.05)
+  expect_equal(mean(fireSenseUtils::yearClimateMultiplier(yc, 1:5)), 1)             # renormalised
+  ## the fitted multipliers are the curve of the data, up to its level
+  mult <- fireSenseUtils::yearClimateMultiplier(yc, 1:5)
+  expect_equal(mult, curve$observed / mean(curve$observed), tolerance = 0.01)
+  ## beyond the fit range it saturates at the floor and the upper level, over norm
+  far <- fireSenseUtils::yearClimateMultiplier(yc, 3 + yc$scale * c(-50, -20, 20, 50))
+  expect_equal(far[1:2], rep(1 / yc$norm, 2), tolerance = 1e-6)
+  expect_equal(far[3:4], rep(yc$ratio / yc$norm, 2), tolerance = 1e-6)
+  expect_lt(max(far), 3 * max(curve$observed) / mean(curve$observed))               # the upper level is bounded
+  ## a flat response gives no term; a falling one too (k >= 0)
+  flat <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e5), shape = "logistic"))
+  expect_equal(c(flat$k, flat$ratio, flat$norm), c(0, 1, 1))
+  falling <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = round(1e5 * exp(-0.5 * z))), shape = "logistic"))
+  expect_lt(falling$k * (falling$ratio - 1), 0.5)
+  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, NULL, shape = "logistic"))$k, 0)
+})
+
+test_that("the logistic upper level over the average is bounded at 3 times the largest year over the mean", {
+  raw <- syntheticClimate()
+  ## one very dry year with a huge total: the unbounded fit would put the upper level far higher
+  yt <- data.frame(year = 2001:2005, predicted = 100, observed = c(100, 100, 100, 100, 400))
+  yc <- suppressMessages(fitYearClimate("CMDsm", raw, yt, shape = "logistic"))
+  expect_lte(yc$ratio / yc$norm, 3 * max(yt$observed) / mean(yt$observed) + 1e-6)
 })
 
 test_that("year weights are 1 on average, floored, and weight the extremes", {
@@ -273,10 +288,14 @@ test_that("an escape term is stored, shares z with the ignition term, and applie
   expect_identical(both$fireSense_IgnitionFitted$modelList$yearClimate, fitWith(list())$fireSense_IgnitionFitted$modelList$yearClimate)
 })
 
-test_that("the hinge and the weights reach both fits", {
-  fit <- fitWith(list(escapeYearClimate = "CMDsm", yearClimateHinge = TRUE, yearClimateWeights = "climate"))
-  expect_true("beta2" %in% names(fit$fireSense_IgnitionFitted$modelList$yearClimate))
-  expect_true("beta2" %in% names(fit$fireSense_EscapeFitted$modelList$yearClimate))
+test_that("the shape and the weights reach both fits", {
+  fit <- fitWith(list(escapeYearClimate = "CMDsm", yearClimateShape = "logistic", yearClimateWeights = "climate"))
+  for (f in list(fit$fireSense_IgnitionFitted, fit$fireSense_EscapeFitted)) {
+    yc <- f$modelList$yearClimate
+    expect_identical(yc$shape, "logistic")
+    expect_identical(yc$weights, "climate")
+    expect_gte(yc$k, 0)
+  }
 })
 
 test_that("fitYearClimate records the weights only when they are not equal", {

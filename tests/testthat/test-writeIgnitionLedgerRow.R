@@ -444,7 +444,7 @@ test_that("without fit data, ignitionFitFilename = \"latest\" reads the newest r
 
 test_that("a stored fit is reused only by a run with the same year climate settings, in both directions", {
   esc <- list(escapeYearClimate = "CMDsm")
-  hinge <- list(yearClimateHinge = TRUE)
+  hinge <- list(yearClimateShape = "logistic")
   wts <- list(yearClimateWeights = "climate")
   reuse <- function(seed, run) fitsInRun(localLedgerPaths(), c(list(doFit = NA), run), ledger = TRUE, seed = seed)
   expect_identical(reuse(list(), list())$fits, 0L)                 # the same settings
@@ -460,10 +460,10 @@ test_that("a stored fit is reused only by a run with the same year climate setti
   }
 })
 
-test_that("storedYearClimateProblem compares the escape term, the hinge and the weights", {
+test_that("storedYearClimateProblem compares the escape term, the shape and the weights", {
   term <- function(...) list(modelList = list(yearClimate = list(variable = "CMDsm", center = 0, scale = 1, beta = 1, norm = 1, ...)))
   none <- list(modelList = list())
-  par <- list(ignitionYearClimate = "CMDsm", escapeYearClimate = NA_character_, yearClimateHinge = FALSE, yearClimateWeights = "equal")
+  par <- list(ignitionYearClimate = "CMDsm", escapeYearClimate = NA_character_, yearClimateShape = "loglinear", yearClimateWeights = "equal")
   set <- function(...) modifyList(par, list(...))
   expect_null(storedYearClimateProblem(term(), "ignition", par))
   expect_null(storedYearClimateProblem(none, "escape", par))
@@ -472,9 +472,9 @@ test_that("storedYearClimateProblem compares the escape term, the hinge and the 
   expect_match(storedYearClimateProblem(term(), "escape", par), "escapeYearClimate. is NA")
   expect_null(storedYearClimateProblem(term(), "escape", set(escapeYearClimate = "CMD_sm")))   # underscores do not matter
   expect_match(storedYearClimateProblem(term(), "escape", set(escapeYearClimate = "lightning")), "term is of CMDsm")
-  expect_match(storedYearClimateProblem(term(beta2 = 0), "ignition", par), "with the year climate hinge")
-  expect_match(storedYearClimateProblem(term(), "ignition", set(yearClimateHinge = TRUE)), "without the year climate hinge")
-  expect_null(storedYearClimateProblem(term(beta2 = 0.1), "ignition", set(yearClimateHinge = TRUE)))
+  expect_match(storedYearClimateProblem(term(shape = "logistic"), "ignition", par), "logistic.*loglinear")
+  expect_match(storedYearClimateProblem(term(), "ignition", set(yearClimateShape = "logistic")), "loglinear.*logistic")
+  expect_null(storedYearClimateProblem(term(shape = "logistic"), "ignition", set(yearClimateShape = "logistic")))
   expect_match(storedYearClimateProblem(term(weights = "climate"), "ignition", par), "climate.*equal")
   expect_match(storedYearClimateProblem(term(), "ignition", set(yearClimateWeights = "climate")), "equal.*climate")
   expect_null(storedYearClimateProblem(term(weights = "climate"), "ignition", set(yearClimateWeights = "climate")))
