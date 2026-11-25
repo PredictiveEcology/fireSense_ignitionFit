@@ -183,3 +183,98 @@ test_that("rescaleVars = FALSE gives the same term as the standardised fit, and 
 test_that("a year climate variable that is not a covariate stops the fit", {
   expect_error(fitWith(list(ignitionYearClimate = "CMDfoo")), "not among the covariates")
 })
+
+## ---- the year climate term of the escapes, the hinge and the year weights ----
+
+test_that("the defaults give the term as before, to the last bit", {
+  raw <- syntheticClimate()
+  z <- (1:5 - 3) / stats::sd(1:5)
+  yt <- data.frame(year = 2001:2005, predicted = c(900, 1100, 1000, 950, 1050))
+  yt$observed <- round(yt$predicted * exp(0.4 * z + c(0.1, -0.1, 0, 0.05, -0.05)))
+  ## the code of the term before `hinge` and `weights` existed
+  d <- data.frame(observed = yt$observed, predicted = yt$predicted, z = (1:5 - 3) / stats::sd(1:5))
+  b <- unname(stats::coef(stats::glm(observed ~ 0 + z, offset = log(fireSenseUtils::scaleToObservedLevel(observed, predicted)),
+                                     family = stats::poisson, data = d))["z"])
+  m <- 1:5; beta <- max(0, b)
+  old <- list(variable = "CMDsm", center = mean(m), scale = stats::sd(m), beta = beta,
+              norm = mean(exp(beta * (m - mean(m)) / stats::sd(m))))
+  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, yt)), old)
+  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, yt, hinge = FALSE, weights = "equal")), old)
+  expect_identical(fireSenseUtils::yearClimateMultiplier(old, m), exp(old$beta * (m - old$center) / old$scale) / old$norm)
+})
+
+test_that("an escape term is fitted to the escapes' totals with the ignitions' yearly means", {
+  raw <- syntheticClimate()
+  z <- (1:5 - 3) / stats::sd(1:5)
+  yt <- data.frame(year = 2001:2005, predicted = 500)
+  yt$observed <- round(500 * exp(0.3 * z))
+  yc <- suppressMessages(fitYearClimate("CMDsm", raw, yt))
+  expect_equal(yc$beta, 0.3, tolerance = 0.05)
+  expect_equal(c(yc$center, yc$scale), c(3, stats::sd(1:5)))     # the ignition covariates' means, not the escapes' rows
+  ## escape rows of other years than the ignition rows' own get the multiplier of their year
+  esc <- raw[raw$pixelID == 1 & raw$year %in% c(2002, 2005), ]
+  expect_equal(yearClimateRowMultiplier(yc, raw, esc$year),
+               fireSenseUtils::yearClimateMultiplier(yc, c(2, 5)))
+})
+
+test_that("the hinge fits a steeper dry half, and beta2 stays at 0 when the response is straight or flat when wet", {
+  raw <- syntheticClimate()
+  z <- (1:5 - 3) / stats::sd(1:5)
+  yt <- data.frame(year = 2001:2005, predicted = 1e5)
+  kink <- transform(yt, observed = 1e5 * exp(0.2 * z + 0.6 * pmax(0, z)))
+  yc <- suppressMessages(fitYearClimate("CMDsm", raw, kink, hinge = TRUE))
+  expect_named(yc, c("variable", "center", "scale", "beta", "norm", "beta2"))
+  expect_equal(c(yc$beta, yc$beta2), c(0.2, 0.6), tolerance = 0.02)
+  expect_equal(mean(fireSenseUtils::yearClimateMultiplier(yc, 1:5)), 1)
+  flatWet <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e5 * exp(0.5 * pmax(0, z))), hinge = TRUE))
+  expect_equal(c(flatWet$beta, flatWet$beta2), c(0, 0.5), tolerance = 0.02)
+  straight <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e5 * exp(0.4 * z)), hinge = TRUE))
+  expect_equal(c(straight$beta, straight$beta2), c(0.4, 0), tolerance = 0.02)
+  falling <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e5 * exp(-0.4 * z)), hinge = TRUE))
+  expect_equal(c(falling$beta, falling$beta2), c(0, 0))
+  expect_equal(falling$norm, 1)
+  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, NULL, hinge = TRUE))$beta2, 0)
+})
+
+test_that("year weights are 1 on average, floored, and weight the extremes", {
+  expect_null(yearClimateWeights(c(-2, 0, 2)))
+  expect_null(yearClimateWeights(c(-2, 0, 2), "equal"))
+  z <- c(-1.5, -0.1, 0, 0.5, 1.1)
+  w <- yearClimateWeights(z, "climate")
+  expect_equal(mean(w), 1)
+  expect_equal(w / min(w), pmax(abs(z), 0.25) / 0.25)
+  expect_error(yearClimateWeights(z, "other"))
+  ## a response that is steep only in the dry extreme: the weighted slope follows the extreme years
+  raw <- syntheticClimate()
+  zz <- (1:5 - 3) / stats::sd(1:5)
+  yt <- data.frame(year = 2001:2005, predicted = 1e4, observed = round(1e4 * exp(c(0, 0, 0, 0.1, 0.9))))
+  eq <- suppressMessages(fitYearClimate("CMDsm", raw, yt))
+  wt <- suppressMessages(fitYearClimate("CMDsm", raw, yt, weights = "climate"))
+  expect_false(isTRUE(all.equal(eq$beta, wt$beta)))
+  expect_gt(wt$beta, 0)
+})
+
+test_that("an escape term is stored, shares z with the ignition term, and applies to the fitted escape effects", {
+  both <- fitWith(list(escapeYearClimate = "CMDsm"))
+  ign <- both$fireSense_IgnitionFitted$modelList
+  esc <- both$fireSense_EscapeFitted$modelList
+  expect_named(esc$yearClimate, c("variable", "center", "scale", "beta", "norm"))
+  expect_equal(esc$yearClimate[c("variable", "center", "scale")], ign$yearClimate[c("variable", "center", "scale")])
+  ## default: the escapes have no term, as before
+  none <- fitWith(list())$fireSense_EscapeFitted$modelList
+  expect_null(none$yearClimate)
+  expect_equal(esc$model$yearTotals, none$model$yearTotals)       # the boosters do not depend on it
+  ## the fitted escape effects are relative to the term
+  m <- fireSenseUtils::yearClimateMeans(climateYears(), "CMDsm")
+  ## (not exactly: the expected escapes of an ignited pixel saturate with the mean, `escapeProbPerIgnition()`)
+  expect_equal(esc$yearEffects$expected / none$yearEffects$expected,
+               fireSenseUtils::yearClimateMultiplier(esc$yearClimate, m$mean[match(esc$yearEffects$year, m$year)]),
+               tolerance = 1e-3)
+  expect_identical(both$fireSense_IgnitionFitted$modelList$yearClimate, fitWith(list())$fireSense_IgnitionFitted$modelList$yearClimate)
+})
+
+test_that("the hinge and the weights reach both fits", {
+  fit <- fitWith(list(escapeYearClimate = "CMDsm", yearClimateHinge = TRUE, yearClimateWeights = "climate"))
+  expect_true("beta2" %in% names(fit$fireSense_IgnitionFitted$modelList$yearClimate))
+  expect_true("beta2" %in% names(fit$fireSense_EscapeFitted$modelList$yearClimate))
+})

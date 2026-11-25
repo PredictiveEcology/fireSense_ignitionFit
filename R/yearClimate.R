@@ -1,7 +1,7 @@
-#' The year climate term of an ignition fit
+#' The year climate term of an ignition or an escape fit
 #'
 #' Fits `E[O_y] = P_y * exp(beta * z_y) / norm`, `beta >= 0`, where `P_y` and `O_y` are the out-of-year predicted and
-#' observed ignitions of year `y` (`yearTotals`) and `z_y` is the standardised yearly mean of `variable`
+#' observed ignitions (or escapes) of year `y` (`yearTotals`) and `z_y` is the standardised yearly mean of `variable`
 #' (`fireSenseUtils::yearClimateMeans()` of the raw covariates, the unweighted mean over the rows with the variable and with core (`coreFraction` above 0): centre is the mean over the fit years of the yearly
 #' means, scale their sd). `beta` is the coefficient of
 #' `glm(observed ~ 0 + z, offset = log(scaleToObservedLevel(observed, predicted)), family = poisson)`, floored at 0:
@@ -10,12 +10,21 @@
 #' over them. `beta` is 0 (with a message) if there are fewer than 2 years with a mean, the means do not vary, nothing
 #' is observed or expected, or the glm fails; `center` and `scale` are always finite.
 #'
+#' With `hinge` the term is `exp(beta * z + beta2 * max(0, z))`, `beta, beta2 >= 0` (`beta2` is stored): the best of the
+#' fits with both coefficients, `beta` only and `beta2` only that have no negative coefficient, the level being a free
+#' intercept there (the hinge's multiplier does not average 1; `norm` re-centres it). With
+#' `weights = "climate"` each year counts `yearClimateWeights()` in the glm. `"equal"` and no hinge is the term
+#' as before, to the last bit.
+#'
 #' @param variable Covariate name, with or without underscores. The column must be in `raw`.
 #' @param raw The raw ignition covariates, `sim$fireSense_ignitionCovariates`.
 #' @param yearTotals The `data.frame` of `outOfFoldYearTotals()`: `year` (calendar year; the fit's is standardised
 #'   when `rescaleVars`, so map it with `calendarYearOf()` first), `observed`, `predicted`; or `NULL`.
-#' @return `list(variable, center, scale, beta, norm)`, `variable` being the covariate's column name.
-fitYearClimate <- function(variable, raw, yearTotals) {
+#' @param hinge `TRUE`: also fit `beta2`, the extra slope of the dry half (`z > 0`).
+#' @param weights `"equal"` (every year counts the same) or `"climate"` (`yearClimateWeights()`).
+#' @return `list(variable, center, scale, beta, norm)` (`beta2` after `norm` with `hinge`), `variable` being the
+#'   covariate's column name.
+fitYearClimate <- function(variable, raw, yearTotals, hinge = FALSE, weights = "equal") {
   variable <- fireSenseUtils::yearClimateColumn(variable, names(raw))
   if (is.null(raw[[fireSenseUtils::coreFractionTxt]]))
     warning("fireSense_ignitionFit: the ignition covariates have no `", fireSenseUtils::coreFractionTxt, "` column, so the ",
@@ -25,8 +34,10 @@ fitYearClimate <- function(variable, raw, yearTotals) {
   scale <- stats::sd(m$mean)
   noTerm <- function(why) {
     message("fireSense_ignitionFit: no year climate term (", variable, "): ", why, ".")
-    list(variable = variable, center = if (nrow(m)) mean(m$mean) else 0,
-         scale = if (is.finite(scale) && scale > 0) scale else 1, beta = 0, norm = 1)
+    yc <- list(variable = variable, center = if (nrow(m)) mean(m$mean) else 0,
+               scale = if (is.finite(scale) && scale > 0) scale else 1, beta = 0, norm = 1)
+    if (hinge) yc$beta2 <- 0
+    yc
   }
   if (nrow(m) < 2L || !is.finite(scale) || scale <= 0)
     return(noTerm(paste0(nrow(m), " fit year(s) with a mean, and the yearly means do not vary")))
@@ -36,14 +47,56 @@ fitYearClimate <- function(variable, raw, yearTotals) {
                   z = (m$mean[match(yearTotals$year, m$year)] - center) / scale)
   d <- d[stats::complete.cases(d) & d$predicted > 0, ]
   if (nrow(d) == 0L || sum(d$observed) <= 0) return(noTerm("nothing observed or expected"))
-  b <- tryCatch(suppressWarnings(unname(stats::coef(
-    stats::glm(observed ~ 0 + z, offset = log(fireSenseUtils::scaleToObservedLevel(observed, predicted)), family = stats::poisson,
-               data = d))["z"])), error = function(e) NA_real_)
-  if (!is.finite(b)) return(noTerm("the glm failed"))
-  beta <- max(0, b)
-  message("fireSense_ignitionFit: year climate term (", variable, "): beta = ", signif(beta, 3), " from ", nrow(d),
-          " of ", nrow(m), " fit years.")
-  list(variable = variable, center = center, scale = scale, beta = beta, norm = mean(exp(beta * (m$mean - center) / scale)))
+  d$w <- yearClimateWeights(d$z, weights)
+  d$zHigh <- pmax(0, d$z)
+  ## Without the hinge the overall level gap is removed by the offset (the term is the one made before). With it the
+  ## level is a free intercept: the hinge's multiplier does not average 1 over the years, `norm` re-centres it.
+  d$offset <- log(if (hinge) d$predicted else fireSenseUtils::scaleToObservedLevel(d$observed, d$predicted))
+  fitTerms <- function(terms) tryCatch(suppressWarnings(stats::glm(
+    stats::reformulate(c(if (hinge) "1" else "0", terms), "observed", intercept = TRUE), offset = offset, weights = d$w,
+    family = stats::poisson, data = d)), error = function(e) NULL)
+  if (hinge) {
+    ## best fit with both coefficients >= 0: the unconstrained one if it has them, else one coefficient at 0
+    fits <- lapply(list(c("z", "zHigh"), "z", "zHigh"), fitTerms)
+    coefs <- lapply(fits, function(f) if (!is.null(f) && all(is.finite(stats::coef(f)))) stats::coef(f)[-1])
+    ok <- vapply(coefs, function(cf) !is.null(cf) && all(cf >= 0), logical(1))
+    if (all(vapply(fits, is.null, logical(1)))) return(noTerm("the glm failed"))
+    b <- b2 <- 0
+    if (any(ok)) {
+      cf <- coefs[[which(ok)[which.min(vapply(fits[ok], stats::deviance, numeric(1)))]]]
+      if ("z" %in% names(cf)) b <- unname(cf["z"])
+      if ("zHigh" %in% names(cf)) b2 <- unname(cf["zHigh"])
+    }
+    beta <- max(0, b)
+    beta2 <- max(0, b2)
+  } else {
+    f <- fitTerms("z")
+    b <- if (is.null(f)) NA_real_ else unname(stats::coef(f)["z"])
+    if (!is.finite(b)) return(noTerm("the glm failed"))
+    beta <- max(0, b)
+    beta2 <- NULL
+  }
+  message("fireSense_ignitionFit: year climate term (", variable, "): beta = ", signif(beta, 3),
+          if (hinge) paste0(", beta2 = ", signif(beta2, 3)), " from ", nrow(d), " of ", nrow(m), " fit years.")
+  yc <- list(variable = variable, center = center, scale = scale, beta = beta)
+  if (hinge) yc$beta2 <- beta2
+  yc$norm <- mean(fireSenseUtils::yearClimateMultiplier(yc, m$mean))
+  yc[c("variable", "center", "scale", "beta", "norm", if (hinge) "beta2")]
+}
+
+#' The weights of the years in the fit of the year climate term
+#'
+#' `"equal"`: none (`NULL`; every year counts the same). `"climate"`: `|z_y|` floored at 0.25, then rescaled to mean 1,
+#' so the extreme years, wet or dry, decide the slope and a year near the mean cannot flatten it.
+#'
+#' @param z The standardised yearly climate mean of the years in the fit.
+#' @param weights `"equal"` or `"climate"`.
+#' @return `NULL`, or one weight per `z`, averaging 1.
+yearClimateWeights <- function(z, weights = "equal") {
+  weights <- match.arg(weights, c("equal", "climate"))
+  if (weights == "equal") return(NULL)
+  w <- pmax(abs(z), 0.25)
+  w / mean(w)
 }
 
 #' The year climate multiplier of each row
