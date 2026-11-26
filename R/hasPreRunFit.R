@@ -50,7 +50,8 @@ ledgerRowForThisPolygon <- function(sim) {
 #' land-cover groups merged into one), `predict()` fails on the missing columns. The stored fit is
 #' compatible when all its features are among the current covariate columns and every fold's booster
 #' was fitted with `fireSenseUtils::ignitionObjectiveTxt` (`fireSenseUtils::storedFitProblem()`, which
-#' fireSense_ignitionPredict uses too). Only xgboost fits exist (`buildModel()` stops for any other
+#' fireSense_ignitionPredict uses too), and, with the module's parameters, its year climate term is the run's
+#' (`storedYearClimateProblem()`; `useExistingFitIsCompatible()`). Only xgboost fits exist (`buildModel()` stops for any other
 #' algorithm). The message gives its reason.
 #'
 #' @param fitted A stored `list(modelList = list(model = ...), ...)`, or `NULL`.
@@ -79,13 +80,19 @@ useExistingFitIsCompatible <- function(sim) {
   row <- ledgerRowForThisPolygon(sim)
   procs <- P(sim)$whichProcessesToFit
   ok <- vapply(procs, function(igOrEsc) {
+    col <- fireSenseUtils::ignitionFitAdditionalColNamesTxt[match(igOrEsc, c("ignition", "escape"))]
+    problem <- storedYearClimateProblem(row[[col]][[1]], igOrEsc, P(sim))
+    if (!is.null(problem)) {
+      message("fireSense_ignitionFit: the stored ", igOrEsc, " model for polygon ", paste(sim$.ELFind, collapse = ", "),
+              ": ", problem, ". Fitting again.")
+      return(FALSE)
+    }
     covs <- sim[[igOrEscNames(igOrEsc, post = "Covariates")]]
     if (is.null(covs)) {
       message("fireSense_ignitionFit: no ", igOrEsc, " fit data, so the stored model is not compared with them; ",
               "fireSense_ignitionPredict checks it against its covariates.")
       return(TRUE)
     }
-    col <- fireSenseUtils::ignitionFitAdditionalColNamesTxt[match(igOrEsc, c("ignition", "escape"))]
     storedFitIsCompatible(row[[col]][[1]], covs,
                           polygonID = paste(sim$.ELFind, collapse = ", "), type = igOrEsc)
   }, logical(1))
