@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9015</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9016</span>
       </span>
     </div>
 
@@ -80,8 +80,9 @@
 <code>model</code> (from <code><a href="buildModel.html">buildModel()</a></code>), <code>rescales</code>, <code>fittingRes</code> (resolution of <code>ignitionFitRTM</code>),
 <code>lambdaRescaleFactor</code> (rows of covariates / non-NA cells of <code>ignitionFitRTM</code>) and <code>yearSD</code>, the sd
 of the year effect on the predicted mean (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/yearEffect.html" class="external-link">fireSenseUtils::yearEffectSD()</a></code> of the out-of-fold
-<code>model$yearTotals</code>, for ignitions after the year climate term), <code>yearClimate</code> (ignitions only, absent
-when <code>ignitionYearClimate</code> is <code>NA</code>: <code><a href="fitYearClimate.html">fitYearClimate()</a></code>), which <code>fireSense_burn</code> draws each year, with one z shared by ignitions, escapes and spread,
+<code>model$yearTotals</code>, after the year climate term), <code>yearClimate</code> (<code><a href="fitYearClimate.html">fitYearClimate()</a></code>; absent when the process's
+<code>ignitionYearClimate</code> or <code>escapeYearClimate</code> is <code>NA</code>; both terms use the yearly means of the ignition covariates, so
+one z), which <code>fireSense_burn</code> draws each year, with one z shared by ignitions, escapes and spread,
 and <code>concentration</code> (<code><a href="concentrationOf.html">concentrationOf()</a></code>, logged by <code><a href="concentrationMessage.html">concentrationMessage()</a></code>).</p>
     </div>
 

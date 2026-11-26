@@ -1,7 +1,7 @@
 ---
 title: "fireSense_ignitionFit Manual"
-subtitle: "v.1.2.0.9015"
-date: "Last updated: 2026-11-20"
+subtitle: "v.1.2.0.9016"
+date: "Last updated: 2026-11-26"
 output:
   bookdown::html_document2:
     toc: true
@@ -306,6 +306,33 @@ Parameters are in Table \@ref(tab:moduleParams-fireSense-ignitionFit).
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> The climate covariate whose yearly ELF mean scales each year's expected ignitions, `exp(beta z)` with `beta &gt;= 0` fitted to the out-of-year totals and `z` the standardised yearly mean (`fitYearClimate()`); fixed for every ELF; revisit when all ELFs are fitted. With or without underscore (`CMD_sm` is `CMDsm`); stops if it is not a column of `fireSense_ignitionCovariates`. `NA`: no term. </td>
+   <td style="text-align:left;"> TRUE </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> escapeYearClimate </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> As `ignitionYearClimate`, for the year's expected escapes: `exp(beta_e z)`, `beta_e &gt;= 0` fitted to the escapes' out-of-year totals, with the same `z` (the yearly mean of the ignition covariates). `NA` (default): no term, the escapes as before. </td>
+   <td style="text-align:left;"> TRUE </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> yearClimateShape </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> loglinear </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> The shape of both year climate terms. `"loglinear"` (default): `exp(beta z)`, `beta &gt;= 0`. `"logistic"`: an S-curve through its midpoint at `z = 0` (the ELF's average year), `1 + (ratio - 1) plogis(k z)` renormalised to mean 1 over the fit years, `k &gt;= 0` and `ratio &gt;= 1` fitted to the yearly totals; it saturates beyond the fit range and its upper level over the average is bounded at 3 times the largest observed year total over the mean (`fitYearClimate()`). </td>
+   <td style="text-align:left;"> TRUE </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> yearClimateWeights </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> equal </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> How the fit years count in the fit of the year climate terms: `"equal"`, or `"climate"`: weight `&amp;#124;z&amp;#124;` (at least 0.25), rescaled to mean 1, so the extreme years decide the slope (`fireSenseUtils::annualYearWeights()`). </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>

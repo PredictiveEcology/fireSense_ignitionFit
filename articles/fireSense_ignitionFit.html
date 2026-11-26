@@ -31,7 +31,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_ignitionFit</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9015</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.2.0.9016</span>
       </span>
     </div>
 
@@ -70,9 +70,9 @@
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>fireSense_ignitionFit Manual</h1>
-            <h3 data-toc-skip class="subtitle">v.1.2.0.9015</h3>
+            <h3 data-toc-skip class="subtitle">v.1.2.0.9016</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-11-20</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-11-26</h4>
       
 
       <div class="hidden name"><code>fireSense_ignitionFit.Rmd</code></div>
@@ -716,6 +716,75 @@ NA
 </td>
 <td style="text-align:left;">
 The climate covariate whose yearly ELF mean scales each year’s expected ignitions, <code>exp(beta z)</code> with <code>beta &amp;gt;= 0</code> fitted to the out-of-year totals and <code>z</code> the standardised yearly mean (<code><a href="../reference/fitYearClimate.html">fitYearClimate()</a></code>); fixed for every ELF; revisit when all ELFs are fitted. With or without underscore (<code>CMD_sm</code> is <code>CMDsm</code>); stops if it is not a column of <code>fireSense_ignitionCovariates</code>. <code>NA</code>: no term.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+escapeYearClimate
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+As <code>ignitionYearClimate</code>, for the year’s expected escapes: <code>exp(beta_e z)</code>, <code>beta_e &amp;gt;= 0</code> fitted to the escapes’ out-of-year totals, with the same <code>z</code> (the yearly mean of the ignition covariates). <code>NA</code> (default): no term, the escapes as before.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+yearClimateShape
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+loglinear
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+The shape of both year climate terms. <code>"loglinear"</code> (default): <code>exp(beta z)</code>, <code>beta &amp;gt;= 0</code>. <code>"logistic"</code>: an S-curve through its midpoint at <code>z = 0</code> (the ELF’s average year), <code>1 + (ratio - 1) plogis(k z)</code> renormalised to mean 1 over the fit years, <code>k &amp;gt;= 0</code> and <code>ratio &amp;gt;= 1</code> fitted to the yearly totals; it saturates beyond the fit range and its upper level over the average is bounded at 3 times the largest observed year total over the mean (<code><a href="../reference/fitYearClimate.html">fitYearClimate()</a></code>).
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+yearClimateWeights
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+equal
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+How the fit years count in the fit of the year climate terms: <code>"equal"</code>, or <code>"climate"</code>: weight <code>&amp;amp;#124;z&amp;amp;#124;</code> (at least 0.25), rescaled to mean 1, so the extreme years decide the slope (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/annualYearWeights.html" class="external-link">fireSenseUtils::annualYearWeights()</a></code>).
 </td>
 <td style="text-align:left;">
 TRUE

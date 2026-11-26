@@ -27,6 +27,7 @@
 <url><loc>/reference/exposureOf.html</loc></url>
 <url><loc>/reference/fitCovariates.html</loc></url>
 <url><loc>/reference/fitFoldXgboost.html</loc></url>
+<url><loc>/reference/fitLogisticYearClimate.html</loc></url>
 <url><loc>/reference/fitYearClimate.html</loc></url>
 <url><loc>/reference/fittedYearEffects.html</loc></url>
 <url><loc>/reference/foldsLackPositives.html</loc></url>
@@ -38,6 +39,7 @@
 <url><loc>/reference/ignitionLedgerWriteFile.html</loc></url>
 <url><loc>/reference/index.html</loc></url>
 <url><loc>/reference/ledgerRowForThisPolygon.html</loc></url>
+<url><loc>/reference/logisticYearBounds.html</loc></url>
 <url><loc>/reference/matchedIgnitionRows.html</loc></url>
 <url><loc>/reference/meanRocMessage.html</loc></url>
 <url><loc>/reference/outOfFoldPrediction.html</loc></url>
@@ -48,6 +50,7 @@
 <url><loc>/reference/setupPlots.html</loc></url>
 <url><loc>/reference/stopIfFoldsLackPositives.html</loc></url>
 <url><loc>/reference/storedFitIsCompatible.html</loc></url>
+<url><loc>/reference/storedYearClimateProblem.html</loc></url>
 <url><loc>/reference/stripFittedForLedger.html</loc></url>
 <url><loc>/reference/useExistingFitIsCompatible.html</loc></url>
 <url><loc>/reference/useExistingIgnitionFit.html</loc></url>
