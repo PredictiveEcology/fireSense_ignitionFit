@@ -453,7 +453,10 @@ test_that("a stored fit is reused only by a run with the same year climate setti
   for (case in list(list(list(), esc), list(esc, list()),                       # an escape term set, or dropped
                     list(list(), hinge), list(hinge, list()),
                     list(list(), wts), list(wts, list()),
-                    list(esc, c(esc, hinge)), list(c(esc, wts), esc))) {
+                    list(esc, c(esc, hinge)), list(c(esc, wts), esc),
+                    list(list(), list(ignitionYearClimate = NA_character_)),     # the ignition term, set or dropped
+                    list(list(ignitionYearClimate = NA_character_), list()),
+                    list(list(), list(ignitionYearClimate = "lightning")))) {
     r <- reuse(case[[1]], case[[2]])
     expect_gt(r$fits, 0L)
     expect_match(paste(r$msgs, collapse = "\n"), "Fitting again")
@@ -467,14 +470,23 @@ test_that("storedYearClimateProblem compares the escape term, the shape and the 
   set <- function(...) modifyList(par, list(...))
   expect_null(storedYearClimateProblem(term(), "ignition", par))
   expect_null(storedYearClimateProblem(none, "escape", par))
-  expect_null(storedYearClimateProblem(none, "ignition", par))                  # a fit from before the ignition term
+  expect_match(storedYearClimateProblem(none, "ignition", par), "no year climate term")   # a fit from before the ignition term
+  expect_null(storedYearClimateProblem(none, "ignition", set(ignitionYearClimate = NA_character_)))
+  expect_match(storedYearClimateProblem(term(), "ignition", set(ignitionYearClimate = NA_character_)), "ignitionYearClimate. is NA")
+  expect_match(storedYearClimateProblem(term(), "ignition", set(ignitionYearClimate = "lightning")), "term is of CMDsm")
+  expect_null(storedYearClimateProblem(term(), "ignition", set(ignitionYearClimate = "CMD_sm")))
   expect_match(storedYearClimateProblem(none, "escape", set(escapeYearClimate = "CMDsm")), "no year climate term")
   expect_match(storedYearClimateProblem(term(), "escape", par), "escapeYearClimate. is NA")
   expect_null(storedYearClimateProblem(term(), "escape", set(escapeYearClimate = "CMD_sm")))   # underscores do not matter
   expect_match(storedYearClimateProblem(term(), "escape", set(escapeYearClimate = "lightning")), "term is of CMDsm")
   expect_match(storedYearClimateProblem(term(shape = "logistic"), "ignition", par), "logistic.*loglinear")
   expect_match(storedYearClimateProblem(term(), "ignition", set(yearClimateShape = "logistic")), "loglinear.*logistic")
-  expect_null(storedYearClimateProblem(term(shape = "logistic"), "ignition", set(yearClimateShape = "logistic")))
+  lg <- term(shape = "logistic", bounds = logisticYearBounds)
+  expect_null(storedYearClimateProblem(lg, "ignition", set(yearClimateShape = "logistic")))
+  ## a logistic term fitted under other bounds (cap, k, ratio) than this version's, or recording none, is not reused
+  other <- term(shape = "logistic", bounds = replace(logisticYearBounds, "capFactor", 5))
+  expect_match(storedYearClimateProblem(other, "ignition", set(yearClimateShape = "logistic")), "other bounds")
+  expect_match(storedYearClimateProblem(term(shape = "logistic"), "ignition", set(yearClimateShape = "logistic")), "other bounds")
   expect_match(storedYearClimateProblem(term(weights = "climate"), "ignition", par), "climate.*equal")
   expect_match(storedYearClimateProblem(term(), "ignition", set(yearClimateWeights = "climate")), "equal.*climate")
   expect_null(storedYearClimateProblem(term(weights = "climate"), "ignition", set(yearClimateWeights = "climate")))

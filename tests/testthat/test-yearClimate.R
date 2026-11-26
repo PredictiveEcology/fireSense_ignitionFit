@@ -223,7 +223,8 @@ test_that("the logistic shape recovers a known S-curve, saturates beyond the fit
   yt <- data.frame(year = 2001:2005, predicted = 1e5)
   curve <- transform(yt, observed = round(1e5 * (1 + 3 * stats::plogis(3 * z))))      # k = 3, ratio = 4
   yc <- suppressMessages(fitYearClimate("CMDsm", raw, curve, shape = "logistic"))
-  expect_named(yc, c("variable", "center", "scale", "shape", "k", "ratio", "norm"))
+  expect_named(yc, c("variable", "center", "scale", "shape", "k", "ratio", "norm", "bounds"))
+  expect_equal(yc$bounds, logisticYearBounds)
   expect_identical(yc$shape, "logistic")
   expect_equal(c(yc$k, yc$ratio), c(3, 4), tolerance = 0.05)
   expect_equal(mean(fireSenseUtils::yearClimateMultiplier(yc, 1:5)), 1)             # renormalised
@@ -251,14 +252,11 @@ test_that("the logistic upper level over the average is bounded at 3 times the l
   expect_lte(yc$ratio / yc$norm, 3 * max(yt$observed) / mean(yt$observed) + 1e-6)
 })
 
-test_that("year weights are 1 on average, floored, and weight the extremes", {
-  expect_null(yearClimateWeights(c(-2, 0, 2)))
-  expect_null(yearClimateWeights(c(-2, 0, 2), "equal"))
+test_that("the climate year weights are the shared rule (fireSenseUtils::annualYearWeights), and weight the extremes", {
   z <- c(-1.5, -0.1, 0, 0.5, 1.1)
-  w <- yearClimateWeights(z, "climate")
+  w <- fireSenseUtils::annualYearWeights(z, "climate")
   expect_equal(mean(w), 1)
   expect_equal(w / min(w), pmax(abs(z), 0.25) / 0.25)
-  expect_error(yearClimateWeights(z, "other"))
   ## a response that is steep only in the dry extreme: the weighted slope follows the extreme years
   raw <- syntheticClimate()
   zz <- (1:5 - 3) / stats::sd(1:5)

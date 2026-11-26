@@ -18,8 +18,8 @@
 #' (weighted) Poisson likelihood of `O_y ~ c * P_y * g(z_y)`, with the level `c` profiled out (`optim()`, Nelder-Mead,
 #' from several starts), and `ratio / norm`, the upper level over the average, may not exceed 3 times the largest
 #' observed year total over the mean of the observed year totals, `max(O_y) / mean(O_y)` (a fit with no gain over a
-#' flat multiplier stores `k = 0`, `ratio = 1`). The stored list is `list(variable, center, scale, shape, k, ratio, norm)`.
-#' With `weights = "climate"` each year counts `yearClimateWeights()` in the fit. `"loglinear"` and `"equal"` is the
+#' flat multiplier stores `k = 0`, `ratio = 1`). The stored list is `list(variable, center, scale, shape, k, ratio, norm, bounds)`.
+#' With `weights = "climate"` each year counts `fireSenseUtils::annualYearWeights()` in the fit. `"loglinear"` and `"equal"` is the
 #' term as before, to the last bit.
 #'
 #' @param variable Covariate name, with or without underscores. The column must be in `raw`.
@@ -27,9 +27,9 @@
 #' @param yearTotals The `data.frame` of `outOfFoldYearTotals()`: `year` (calendar year; the fit's is standardised
 #'   when `rescaleVars`, so map it with `calendarYearOf()` first), `observed`, `predicted`; or `NULL`.
 #' @param shape `"loglinear"` (`exp(beta * z)`, the default) or `"logistic"`.
-#' @param weights `"equal"` (every year counts the same) or `"climate"` (`yearClimateWeights()`).
+#' @param weights `"equal"` (every year counts the same) or `"climate"` (`fireSenseUtils::annualYearWeights()`).
 #' @return `list(variable, center, scale, beta, norm)`, or with `shape = "logistic"`
-#'   `list(variable, center, scale, shape, k, ratio, norm)`; then `weights` when not `"equal"`. `variable` is the
+#'   `list(variable, center, scale, shape, k, ratio, norm, bounds)`; then `weights` when not `"equal"`. `variable` is the
 #'   covariate's column name.
 fitYearClimate <- function(variable, raw, yearTotals, shape = "loglinear", weights = "equal") {
   weights <- match.arg(weights, c("equal", "climate"))
@@ -46,7 +46,7 @@ fitYearClimate <- function(variable, raw, yearTotals, shape = "loglinear", weigh
     message("fireSense_ignitionFit: no year climate term (", variable, "): ", why, ".")
     yc <- list(variable = variable, center = if (nrow(m)) mean(m$mean) else 0,
                scale = if (is.finite(scale) && scale > 0) scale else 1)
-    yc <- if (logistic) c(yc, list(shape = shape, k = 0, ratio = 1, norm = 1)) else c(yc, list(beta = 0, norm = 1))
+    yc <- if (logistic) c(yc, list(shape = shape, k = 0, ratio = 1, norm = 1, bounds = logisticYearBounds)) else c(yc, list(beta = 0, norm = 1))
     if (weights != "equal") yc$weights <- weights
     yc
   }
@@ -55,18 +55,18 @@ fitYearClimate <- function(variable, raw, yearTotals, shape = "loglinear", weigh
   center <- mean(m$mean)
   if (is.null(yearTotals)) return(noTerm("no out-of-year totals"))
   d <- data.frame(observed = yearTotals$observed, predicted = yearTotals$predicted,
-                  z = (m$mean[match(yearTotals$year, m$year)] - center) / scale)
+                  z = fireSenseUtils::standardiseYearClimate(m$mean[match(yearTotals$year, m$year)], center, scale))
   d <- d[stats::complete.cases(d) & d$predicted > 0, ]
   if (nrow(d) == 0L || sum(d$observed) <= 0) return(noTerm("nothing observed or expected"))
-  d$w <- yearClimateWeights(d$z, weights)
+  d$w <- fireSenseUtils::annualYearWeights(d$z, weights)
   yc <- list(variable = variable, center = center, scale = scale)
   if (logistic) {
-    fit <- fitLogisticYearClimate(d, (m$mean - center) / scale)
+    fit <- fitLogisticYearClimate(d, fireSenseUtils::standardiseYearClimate(m$mean, center, scale))
     if (is.null(fit)) return(noTerm("the fit failed"))
     message("fireSense_ignitionFit: year climate term (", variable, "), logistic: k = ", signif(fit$k, 3), ", ratio = ",
             signif(fit$ratio, 3), " from ", nrow(d), " of ", nrow(m), " fit years.")
-    yc <- c(yc, list(shape = shape, k = fit$k, ratio = fit$ratio))
-    keep <- c("variable", "center", "scale", "shape", "k", "ratio", "norm")
+    yc <- c(yc, list(shape = shape, k = fit$k, ratio = fit$ratio, bounds = logisticYearBounds))
+    keep <- c("variable", "center", "scale", "shape", "k", "ratio", "norm", "bounds")
   } else {
     d$offset <- log(fireSenseUtils::scaleToObservedLevel(d$observed, d$predicted))
     f <- tryCatch(suppressWarnings(stats::glm(observed ~ 0 + z, offset = offset, weights = d$w, family = stats::poisson,
@@ -84,30 +84,37 @@ fitYearClimate <- function(variable, raw, yearTotals, shape = "loglinear", weigh
   yc[c(keep, if (weights != "equal") "weights")]
 }
 
+#' The bounds of the logistic year climate term
+#'
+#' `kMax` and `ratioMax`: `k` is fitted in 0 to `kMax` and `ratio` in 1 to `ratioMax`; `capFactor`: the upper level over
+#' the average, `ratio / norm`, may not exceed `capFactor` times the largest observed year total over their mean. The
+#' stored term records them (`bounds`), so a fit made under other bounds is not reused (`storedYearClimateProblem()`).
+logisticYearBounds <- c(capFactor = 3, kMax = 10, ratioMax = 1000)
+
 #' The logistic year climate term: `k` and `ratio`
 #'
 #' Maximises the (weighted) Poisson likelihood of `O_y ~ c * P_y * g(z_y)`, `g = 1 + (ratio - 1) * plogis(k * z)`, over
-#' `k` in 0 to 10 and `ratio` in 1 to 1000, with `c` profiled out, from a grid of starting values (`optim()`, Nelder-Mead
-#' on an unconstrained scale). The upper level over the average, `ratio / mean(g)` over the fit years, may not exceed 3
+#' `k` and `ratio` within `logisticYearBounds`, with `c` profiled out, from a grid of starting values (`optim()`, Nelder-Mead
+#' on an unconstrained scale). The upper level over the average, `ratio / mean(g)` over the fit years, may not exceed `capFactor`
 #' times `max(O_y) / mean(O_y)` (a point outside is not accepted). A fit no better than the flat multiplier gives
 #' `k = 0`, `ratio = 1`.
 #'
-#' @param d `data.frame` with `observed`, `predicted`, `z` and `w` (`NULL`: equal) of the years of the fit.
+#' @param d `data.frame` with `observed`, `predicted`, `z` and `w` of the years of the fit.
 #' @param zFit `z` of every fit year (the years `norm` averages over).
 #' @return `list(k, ratio)`, or `NULL` if no start gave a finite likelihood.
 fitLogisticYearClimate <- function(d, zFit) {
-  w <- if (is.null(d$w)) rep(1, nrow(d)) else d$w
-  kMax <- 10; ratioMax <- 1000
-  cap <- 3 * max(d$observed) / mean(d$observed)
+  w <- d$w
+  kMax <- logisticYearBounds[["kMax"]]; ratioMax <- logisticYearBounds[["ratioMax"]]
+  cap <- logisticYearBounds[["capFactor"]] * max(d$observed) / mean(d$observed)
   dev <- function(k, ratio) {
-    g <- 1 + (ratio - 1) * stats::plogis(k * d$z)
+    g <- fireSenseUtils::logisticYearCurve(d$z, k, ratio)
     mu <- sum(w * d$observed) / sum(w * d$predicted * g) * d$predicted * g
     2 * sum(w * (ifelse(d$observed > 0, d$observed * log(d$observed / mu), 0) - (d$observed - mu)))
   }
   objective <- function(u) {
     k <- kMax * stats::plogis(u[1])
     ratio <- 1 + min(exp(u[2]), ratioMax - 1)
-    if (ratio / mean(1 + (ratio - 1) * stats::plogis(k * zFit)) > cap) return(1e12)
+    if (ratio / mean(fireSenseUtils::logisticYearCurve(zFit, k, ratio)) > cap) return(1e12)
     out <- dev(k, ratio)
     if (is.finite(out)) out else 1e12
   }
@@ -120,21 +127,6 @@ fitLogisticYearClimate <- function(d, zFit) {
       best <- list(value = o$value, k = kMax * stats::plogis(o$par[1]), ratio = 1 + min(exp(o$par[2]), ratioMax - 1))
   }
   list(k = best$k, ratio = best$ratio)
-}
-
-#' The weights of the years in the fit of the year climate term
-#'
-#' `"equal"`: none (`NULL`; every year counts the same). `"climate"`: `|z_y|` floored at 0.25, then rescaled to mean 1,
-#' so the extreme years, wet or dry, decide the slope and a year near the mean cannot flatten it.
-#'
-#' @param z The standardised yearly climate mean of the years in the fit.
-#' @param weights `"equal"` or `"climate"`.
-#' @return `NULL`, or one weight per `z`, averaging 1.
-yearClimateWeights <- function(z, weights = "equal") {
-  weights <- match.arg(weights, c("equal", "climate"))
-  if (weights == "equal") return(NULL)
-  w <- pmax(abs(z), 0.25)
-  w / mean(w)
 }
 
 #' The year climate multiplier of each row
@@ -174,10 +166,12 @@ calendarYearOf <- function(year, fitYear, rawYear) {
 #' Does a stored fit's year climate term differ from this run's settings?
 #'
 #' A fit stored in the ledger carries the term it was made with (`modelList$yearClimate`; `shape` with
-#' `yearClimateShape = "logistic"`, `weights` with `yearClimateWeights = "climate"`). The escape term must be there exactly when
-#' `escapeYearClimate` is set (same variable, with or without underscores). Where both the stored fit and this run have a
-#' term, `yearClimateShape` and `yearClimateWeights` must agree. A fit stored before these parameters existed has
-#' neither `shape`, `weights` nor an escape term: it matches only their defaults.
+#' `yearClimateShape = "logistic"` (with its `bounds`), `weights` with `yearClimateWeights = "climate"`). The term must be
+#' there exactly when `ignitionYearClimate` (`escapeYearClimate`) is set, of the same variable (with or without
+#' underscores). Where both the stored fit and this run have a term, `yearClimateShape`, the bounds of a logistic one
+#' (`logisticYearBounds`) and `yearClimateWeights` must agree. A fit stored before these parameters existed has
+#' neither `shape`, `bounds`, `weights` nor an escape term: it matches only their defaults, and one made before the
+#' ignition term existed is refitted when `ignitionYearClimate` is set.
 #'
 #' @param fitted A stored `list(modelList = ...)`, or `NULL`.
 #' @param igOrEsc `"ignition"` or `"escape"`.
@@ -188,17 +182,20 @@ storedYearClimateProblem <- function(fitted, igOrEsc, par) {
   yc <- fitted$modelList$yearClimate
   variable <- par[[paste0(igOrEsc, "YearClimate")]]
   want <- length(variable) == 1L && !is.na(variable)
+  param <- paste0(igOrEsc, "YearClimate")
   squash <- function(x) gsub("_", "", x, fixed = TRUE)
-  if (igOrEsc == "escape" && want != !is.null(yc))
-    return(paste0("it has ", if (is.null(yc)) "no" else "an", " year climate term, but `escapeYearClimate` is ",
+  if (want != !is.null(yc))
+    return(paste0("it has ", if (is.null(yc)) "no" else "an", " year climate term, but `", param, "` is ",
                   if (want) paste0("\"", variable, "\"") else "NA"))
-  if (igOrEsc == "escape" && want && !identical(squash(yc$variable), squash(variable)))
-    return(paste0("its year climate term is of ", yc$variable, ", but `escapeYearClimate` is \"", variable, "\""))
-  if (!want || is.null(yc)) return(NULL)
+  if (!want) return(NULL)
+  if (!identical(squash(yc$variable), squash(variable)))
+    return(paste0("its year climate term is of ", yc$variable, ", but `", param, "` is \"", variable, "\""))
   storedShape <- if (is.null(yc$shape)) "loglinear" else yc$shape
   now <- if (is.null(par$yearClimateShape)) "loglinear" else par$yearClimateShape
   if (!identical(storedShape, now))
     return(paste0("it was fitted with `yearClimateShape = \"", storedShape, "\"`, but this run's is \"", now, "\""))
+  if (identical(storedShape, "logistic") && !isTRUE(all.equal(yc$bounds, logisticYearBounds)))
+    return(paste0("its logistic year climate term was fitted under other bounds (cap, k, ratio) than this version's"))
   stored <- if (is.null(yc$weights)) "equal" else yc$weights
   nowWeights <- if (is.null(par$yearClimateWeights)) "equal" else par$yearClimateWeights
   if (!identical(stored, nowWeights))

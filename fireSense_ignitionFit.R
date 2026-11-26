@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9194)", # TODO set to the real post-#264 version after merge (fireSenseUtils#264: yearClimateMultiplier() reads beta2, hinge); 9184: scaleToObservedLevel(), yearClimateMeans(covariates, variable) unweighted over core rows, yearClimateMultiplier() norm; 9182: yearClimateColumn(), yearClimateMeans(), yearClimateMultiplier(); 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9194)", # TODO set to the real post-#264 version after merge (fireSenseUtils#264: yearClimateMultiplier() reads the logistic term, logisticYearCurve(); #263: annualYearWeights(), standardiseYearClimate()); 9184: scaleToObservedLevel(), yearClimateMeans(covariates, variable) unweighted over core rows, yearClimateMultiplier() norm; 9182: yearClimateColumn(), yearClimateMeans(), yearClimateMultiplier(); 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
                   "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -119,7 +119,7 @@ defineModule(sim, list(
     defineParameter("yearClimateWeights", "character", "equal", NA, NA,
                     paste("How the fit years count in the fit of the year climate terms: `\"equal\"`, or `\"climate\"`: weight",
                           "`|z|` (at least 0.25), rescaled to mean 1, so the extreme years decide the slope",
-                          "(`yearClimateWeights()`).")),
+                          "(`fireSenseUtils::annualYearWeights()`).")),
     defineParameter("doFit", "logical", FALSE, NA, NA,
                     paste("Whether to fit this polygon. FALSE (default): never fit -- use the ledger's fits, and",
                           "stop with an error if it holds none for this polygon (`ignitionFitFilename` picks the ledger), so",
