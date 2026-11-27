@@ -19,7 +19,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("fireSense_dataPrepFit", "fireSense_ELFs"),
                    before = "fireSense_dataPrepPredict"),
   reqdPkgs = list("data.table", "dplyr", "PredictiveEcology/SpaDES.core@development (>= 3.2.1.9037)",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9195)", # 9195: fireSenseUtils#264 (yearClimateMultiplier() reads the logistic term, logisticYearCurve()); TODO change if another fireSenseUtils PR merges before #264; 9194: annualYearWeights(), standardiseYearClimate() (#263); 9184: scaleToObservedLevel(), yearClimateMeans(covariates, variable) unweighted over core rows, yearClimateMultiplier() norm; 9182: yearClimateColumn(), yearClimateMeans(), yearClimateMultiplier(); 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9199)", # 9199: cappedYearCurve(), yearClimateMultiplier() reads the capped term (fireSenseUtils PR cappedYearClimate; TODO check the post-merge version); 9195: fireSenseUtils#264 (yearClimateMultiplier() reads the logistic term, logisticYearCurve()); TODO change if another fireSenseUtils PR merges before #264; 9194: annualYearWeights(), standardiseYearClimate() (#263); 9184: scaleToObservedLevel(), yearClimateMeans(covariates, variable) unweighted over core rows, yearClimateMultiplier() norm; 9182: yearClimateColumn(), yearClimateMeans(), yearClimateMultiplier(); 9179: latestIgnitionFits(escapeDefinition); 9177: storedFitProblem(), xgbFeatureNames(), foreignObjectives(); 9168: foldMeanPrediction(), escapeProbPerIgnition()
                   "ggplot2", "ggpubr", "googledrive", "magrittr", "purrr", "RColorBrewer",
                   "numDeriv", "parallel", "parallelly",
                   "PredictiveEcology/pemisc@development",
@@ -112,10 +112,10 @@ defineModule(sim, list(
                           "`NA` (default): no term, the escapes as before.")),
     defineParameter("yearClimateShape", "character", "loglinear", NA, NA,
                     paste("The shape of both year climate terms. `\"loglinear\"` (default): `exp(beta * z)`, `beta >= 0`.",
-                          "`\"logistic\"`: an S-curve through its midpoint at `z = 0` (the ELF's average year),",
-                          "`1 + (ratio - 1) * plogis(k * z)` renormalised to mean 1 over the fit years, `k >= 0` and",
-                          "`ratio >= 1` fitted to the yearly totals; it saturates beyond the fit range and its upper level over",
-                          "the average is bounded at 3 times the largest observed year total over the mean (`fitYearClimate()`).")),
+                          "`\"capped\"`: `exp(beta * min(z, zCap))`, log-linear up to a cap `zCap` and flat above it;",
+                          "`beta >= 0` and `zCap` fitted to the yearly totals with no bounds, the cap kept below the driest fit",
+                          "year only if it lowers the deviance by more than 2, else log-linear over the fit years and flat beyond",
+                          "(`fitYearClimate()`). `\"logistic\"` is retired: stored logistic fits are reused, new ones stop.")),
     defineParameter("yearClimateWeights", "character", "equal", NA, NA,
                     paste("How the fit years count in the fit of the year climate terms: `\"equal\"`, or `\"climate\"`: weight",
                           "`|z|` (at least 0.25), rescaled to mean 1, so the extreme years decide the slope",

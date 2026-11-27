@@ -217,39 +217,71 @@ test_that("an escape term is fitted to the escapes' totals with the ignitions' y
                fireSenseUtils::yearClimateMultiplier(yc, c(2, 5)))
 })
 
-test_that("the logistic shape recovers a known S-curve, saturates beyond the fit range, and is flat for a flat response", {
-  raw <- syntheticClimate()
-  z <- (1:5 - 3) / stats::sd(1:5)
-  yt <- data.frame(year = 2001:2005, predicted = 1e5)
-  curve <- transform(yt, observed = round(1e5 * (1 + 3 * stats::plogis(3 * z))))      # k = 3, ratio = 4
-  yc <- suppressMessages(fitYearClimate("CMDsm", raw, curve, shape = "logistic"))
-  expect_named(yc, c("variable", "center", "scale", "shape", "k", "ratio", "norm", "bounds"))
-  expect_equal(yc$bounds, logisticYearBounds)
-  expect_identical(yc$shape, "logistic")
-  expect_equal(c(yc$k, yc$ratio), c(3, 4), tolerance = 0.05)
-  expect_equal(mean(fireSenseUtils::yearClimateMultiplier(yc, 1:5)), 1)             # renormalised
-  ## the fitted multipliers are the curve of the data, up to its level
-  mult <- fireSenseUtils::yearClimateMultiplier(yc, 1:5)
-  expect_equal(mult, curve$observed / mean(curve$observed), tolerance = 0.01)
-  ## beyond the fit range it saturates at the floor and the upper level, over norm
-  far <- fireSenseUtils::yearClimateMultiplier(yc, 3 + yc$scale * c(-50, -20, 20, 50))
-  expect_equal(far[1:2], rep(1 / yc$norm, 2), tolerance = 1e-6)
-  expect_equal(far[3:4], rep(yc$ratio / yc$norm, 2), tolerance = 1e-6)
-  expect_lt(max(far), 3 * max(curve$observed) / mean(curve$observed))               # the upper level is bounded
-  ## a flat response gives no term; a falling one too (k >= 0)
-  flat <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e5), shape = "logistic"))
-  expect_equal(c(flat$k, flat$ratio, flat$norm), c(0, 1, 1))
-  falling <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = round(1e5 * exp(-0.5 * z))), shape = "logistic"))
-  expect_lt(falling$k * (falling$ratio - 1), 0.5)
-  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, NULL, shape = "logistic"))$k, 0)
+## 30 years with CMDsm 1..30, so z is spread evenly over about -1.7 to 1.7
+manyYears <- function(n = 30) {
+  data.table::data.table(pixelID = rep(1:2, n), year = rep(2000 + seq_len(n), each = 2), CMDsm = rep(seq_len(n), each = 2),
+                         coreFraction = 1, ignitions = 0L)
+}
+
+test_that("capped: a log-linear truth gives the log-linear curve, with no parameter at a bound", {
+  raw <- manyYears()
+  z <- fireSenseUtils::standardiseYearClimate(as.numeric(1:30))
+  set.seed(1)
+  yt <- data.frame(year = 2001:2030, predicted = 200)
+  yt$observed <- stats::rpois(30, 200 * exp(0.6 * z))
+  yc <- suppressMessages(fitYearClimate("CMDsm", raw, yt, shape = "capped"))
+  expect_named(yc, c("variable", "center", "scale", "shape", "beta", "zCap", "norm"))
+  expect_identical(yc$shape, "capped")
+  expect_equal(yc$beta, 0.6, tolerance = 0.1)
+  expect_equal(yc$zCap, max(z))                       # the cap does not earn its parameter: log-linear over the fit years
+  mult <- fireSenseUtils::yearClimateMultiplier(yc, 1:30)
+  expect_equal(mean(mult), 1)
+  expect_equal(log(mult), yc$beta * z - log(yc$norm))  # exactly log-linear in z
+  ## the old logistic shape on the same data runs to its bounds: what this shape replaces
+  expect_error(fitYearClimate("CMDsm", raw, yt, shape = "logistic"), "can no longer be fitted.*capped")
 })
 
-test_that("the logistic upper level over the average is bounded at 3 times the largest year over the mean", {
-  raw <- syntheticClimate()
-  ## one very dry year with a huge total: the unbounded fit would put the upper level far higher
-  yt <- data.frame(year = 2001:2005, predicted = 100, observed = c(100, 100, 100, 100, 400))
-  yc <- suppressMessages(fitYearClimate("CMDsm", raw, yt, shape = "logistic"))
-  expect_lte(yc$ratio / yc$norm, 3 * max(yt$observed) / mean(yt$observed) + 1e-6)
+test_that("capped: a saturating truth with its ceiling inside the fit range is recovered", {
+  raw <- manyYears()
+  z <- fireSenseUtils::standardiseYearClimate(as.numeric(1:30))
+  set.seed(2)
+  yt <- data.frame(year = 2001:2030, predicted = 200)
+  truth <- exp(1.2 * pmin(z, 0.3))
+  yt$observed <- stats::rpois(30, 200 * truth)
+  yc <- suppressMessages(fitYearClimate("CMDsm", raw, yt, shape = "capped"))
+  expect_equal(yc$zCap, 0.3, tolerance = 0.25)
+  expect_lt(yc$zCap, max(z) - 0.5)                     # inside the range, not at its edge
+  expect_equal(yc$beta, 1.2, tolerance = 0.15)
+  mult <- fireSenseUtils::yearClimateMultiplier(yc, 1:30)
+  expect_equal(mult, truth / mean(truth), tolerance = 0.1)
+  ## beyond the fit range it stays at the ceiling
+  far <- fireSenseUtils::yearClimateMultiplier(yc, yc$center + yc$scale * c(5, 50))
+  expect_equal(far, rep(exp(yc$beta * yc$zCap) / yc$norm, 2))
+  ## a smooth S with its ceiling inside the range is also capped inside the range
+  s <- 1 + 3 * stats::plogis(4 * (z + 0.2))
+  ys <- transform(yt, observed = stats::rpois(30, 200 * s))
+  ycs <- suppressMessages(fitYearClimate("CMDsm", raw, ys, shape = "capped"))
+  expect_lt(ycs$zCap, max(z) - 0.5)
+  expect_gt(ycs$beta, 0)
+})
+
+test_that("capped: a flat or falling response gives no term", {
+  raw <- manyYears()
+  z <- fireSenseUtils::standardiseYearClimate(as.numeric(1:30))
+  yt <- data.frame(year = 2001:2030, predicted = 1e4)
+  flat <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = 1e4), shape = "capped"))
+  expect_equal(c(flat$beta, flat$norm), c(0, 1))
+  falling <- suppressMessages(fitYearClimate("CMDsm", raw, transform(yt, observed = round(1e4 * exp(-0.5 * z))), shape = "capped"))
+  expect_identical(falling$beta, 0)
+  expect_equal(fireSenseUtils::yearClimateMultiplier(falling, 1:30), rep(1, 30))
+  expect_identical(suppressMessages(fitYearClimate("CMDsm", raw, NULL, shape = "capped"))$beta, 0)
+})
+
+test_that("a stored logistic term still predicts as before", {
+  lg <- list(variable = "CMDsm", center = 3, scale = 1.5, shape = "logistic", k = 10, ratio = 1000, norm = 2, bounds = logisticYearBounds)
+  m <- c(1, 3, 4, 8)
+  expect_equal(yearClimateRowMultiplier(lg, data.frame(year = 1:4, CMDsm = m)),
+                   (1 + 999 * stats::plogis(10 * (m - 3) / 1.5)) / 2)
 })
 
 test_that("the climate year weights are the shared rule (fireSenseUtils::annualYearWeights), and weight the extremes", {
@@ -287,12 +319,12 @@ test_that("an escape term is stored, shares z with the ignition term, and applie
 })
 
 test_that("the shape and the weights reach both fits", {
-  fit <- fitWith(list(escapeYearClimate = "CMDsm", yearClimateShape = "logistic", yearClimateWeights = "climate"))
+  fit <- fitWith(list(escapeYearClimate = "CMDsm", yearClimateShape = "capped", yearClimateWeights = "climate"))
   for (f in list(fit$fireSense_IgnitionFitted, fit$fireSense_EscapeFitted)) {
     yc <- f$modelList$yearClimate
-    expect_identical(yc$shape, "logistic")
+    expect_identical(yc$shape, "capped")
     expect_identical(yc$weights, "climate")
-    expect_gte(yc$k, 0)
+    expect_gte(yc$beta, 0)
   }
 })
 

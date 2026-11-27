@@ -444,7 +444,7 @@ test_that("without fit data, ignitionFitFilename = \"latest\" reads the newest r
 
 test_that("a stored fit is reused only by a run with the same year climate settings, in both directions", {
   esc <- list(escapeYearClimate = "CMDsm")
-  hinge <- list(yearClimateShape = "logistic")
+  hinge <- list(yearClimateShape = "capped")
   wts <- list(yearClimateWeights = "climate")
   reuse <- function(seed, run) fitsInRun(localLedgerPaths(), c(list(doFit = NA), run), ledger = TRUE, seed = seed)
   expect_identical(reuse(list(), list())$fits, 0L)                 # the same settings
@@ -487,6 +487,9 @@ test_that("storedYearClimateProblem compares the escape term, the shape and the 
   other <- term(shape = "logistic", bounds = replace(logisticYearBounds, "capFactor", 5))
   expect_match(storedYearClimateProblem(other, "ignition", set(yearClimateShape = "logistic")), "other bounds")
   expect_match(storedYearClimateProblem(term(shape = "logistic"), "ignition", set(yearClimateShape = "logistic")), "other bounds")
+  ## a capped term is reused only by a capped run; a logistic one is not reused by a capped run
+  expect_null(storedYearClimateProblem(term(shape = "capped", zCap = 1), "ignition", set(yearClimateShape = "capped")))
+  expect_match(storedYearClimateProblem(lg, "ignition", set(yearClimateShape = "capped")), "logistic.*capped")
   expect_match(storedYearClimateProblem(term(weights = "climate"), "ignition", par), "climate.*equal")
   expect_match(storedYearClimateProblem(term(), "ignition", set(yearClimateWeights = "climate")), "equal.*climate")
   expect_null(storedYearClimateProblem(term(weights = "climate"), "ignition", set(yearClimateWeights = "climate")))
