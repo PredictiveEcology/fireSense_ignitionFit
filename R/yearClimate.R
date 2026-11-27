@@ -10,15 +10,15 @@
 #' over them. `beta` is 0 (with a message) if there are fewer than 2 years with a mean, the means do not vary, nothing
 #' is observed or expected, or the glm fails; `center` and `scale` are always finite.
 #'
-#' With `shape = "logistic"` the term is an S-curve through its midpoint at `z = 0`, the ELF's average year:
-#' `g(z) = 1 + (ratio - 1) * plogis(k * z)` divided by `norm`, the mean of `g` over the fit years (so it averages 1,
-#' as above). Two parameters are fitted, `k >= 0` (the steepness, in 1 / sd) and `ratio >= 1` (the upper level over the
-#' floor); the floor is 1 before `norm`, so the multiplier is always positive, and it saturates beyond the fit range
-#' at `ratio / norm` (the dry side, `z > 0`) and `1 / norm` (the wet side). They maximise the
-#' (weighted) Poisson likelihood of `O_y ~ c * P_y * g(z_y)`, with the level `c` profiled out (`optim()`, Nelder-Mead,
-#' from several starts), and `ratio / norm`, the upper level over the average, may not exceed 3 times the largest
-#' observed year total over the mean of the observed year totals, `max(O_y) / mean(O_y)` (a fit with no gain over a
-#' flat multiplier stores `k = 0`, `ratio = 1`). The stored list is `list(variable, center, scale, shape, k, ratio, norm, bounds)`.
+#' With `shape = "capped"` the term is `exp(beta * min(z, zCap))` divided by `norm` (`fireSenseUtils::cappedYearCurve()`):
+#' log-linear up to `zCap` and flat above it, so it saturates in years drier than `zCap`. `beta` and the level are
+#' fitted by the weighted Poisson glm `observed ~ min(z, zCap)` with offset `log(predicted)` for each `zCap`, and `zCap` is
+#' profiled over the fit years' `z` (`fitCappedYearClimate()`). Nothing is bounded: a cap below the driest fit year is
+#' kept only if it lowers the deviance by more than 2 (one parameter, as AIC counts it); otherwise `zCap` is the
+#' driest fit year's `z`, which is the log-linear curve over every fit year, held flat beyond them. `beta >= 0`, as
+#' for the log-linear shape. The stored list is `list(variable, center, scale, shape, beta, zCap, norm)`.
+#' `shape = "logistic"` is retired for new fits (its steepness and upper level were not identified: with the midpoint
+#' fixed at `z = 0` they ran to their bounds); a stored logistic fit is still reused and predicts as before.
 #' With `weights = "climate"` each year counts `fireSenseUtils::annualYearWeights()` in the fit. `"loglinear"` and `"equal"` is the
 #' term as before, to the last bit.
 #'
@@ -26,15 +26,19 @@
 #' @param raw The raw ignition covariates, `sim$fireSense_ignitionCovariates`.
 #' @param yearTotals The `data.frame` of `outOfFoldYearTotals()`: `year` (calendar year; the fit's is standardised
 #'   when `rescaleVars`, so map it with `calendarYearOf()` first), `observed`, `predicted`; or `NULL`.
-#' @param shape `"loglinear"` (`exp(beta * z)`, the default) or `"logistic"`.
+#' @param shape `"loglinear"` (`exp(beta * z)`, the default) or `"capped"`.
 #' @param weights `"equal"` (every year counts the same) or `"climate"` (`fireSenseUtils::annualYearWeights()`).
-#' @return `list(variable, center, scale, beta, norm)`, or with `shape = "logistic"`
-#'   `list(variable, center, scale, shape, k, ratio, norm, bounds)`; then `weights` when not `"equal"`. `variable` is the
+#' @return `list(variable, center, scale, beta, norm)`, or with `shape = "capped"`
+#'   `list(variable, center, scale, shape, beta, zCap, norm)`; then `weights` when not `"equal"`. `variable` is the
 #'   covariate's column name.
 fitYearClimate <- function(variable, raw, yearTotals, shape = "loglinear", weights = "equal") {
   weights <- match.arg(weights, c("equal", "climate"))
-  shape <- match.arg(shape, c("loglinear", "logistic"))
-  logistic <- shape == "logistic"
+  if (identical(shape, "logistic"))
+    stop("fireSense_ignitionFit: `yearClimateShape = \"logistic\"` can no longer be fitted: its steepness and upper level ",
+         "ran to their bounds (not identified). Use \"capped\" (log-linear up to a fitted cap). Stored logistic fits are ",
+         "still reused.", call. = FALSE)
+  shape <- match.arg(shape, c("loglinear", "capped"))
+  capped <- shape == "capped"
   variable <- fireSenseUtils::yearClimateColumn(variable, names(raw))
   if (is.null(raw[[fireSenseUtils::coreFractionTxt]]))
     warning("fireSense_ignitionFit: the ignition covariates have no `", fireSenseUtils::coreFractionTxt, "` column, so the ",
@@ -46,7 +50,7 @@ fitYearClimate <- function(variable, raw, yearTotals, shape = "loglinear", weigh
     message("fireSense_ignitionFit: no year climate term (", variable, "): ", why, ".")
     yc <- list(variable = variable, center = if (nrow(m)) mean(m$mean) else 0,
                scale = if (is.finite(scale) && scale > 0) scale else 1)
-    yc <- if (logistic) c(yc, list(shape = shape, k = 0, ratio = 1, norm = 1, bounds = logisticYearBounds)) else c(yc, list(beta = 0, norm = 1))
+    yc <- if (capped) c(yc, list(shape = shape, beta = 0, zCap = 0, norm = 1)) else c(yc, list(beta = 0, norm = 1))
     if (weights != "equal") yc$weights <- weights
     yc
   }
@@ -60,13 +64,14 @@ fitYearClimate <- function(variable, raw, yearTotals, shape = "loglinear", weigh
   if (nrow(d) == 0L || sum(d$observed) <= 0) return(noTerm("nothing observed or expected"))
   d$w <- fireSenseUtils::annualYearWeights(d$z, weights)
   yc <- list(variable = variable, center = center, scale = scale)
-  if (logistic) {
-    fit <- fitLogisticYearClimate(d, fireSenseUtils::standardiseYearClimate(m$mean, center, scale))
-    if (is.null(fit)) return(noTerm("the fit failed"))
-    message("fireSense_ignitionFit: year climate term (", variable, "), logistic: k = ", signif(fit$k, 3), ", ratio = ",
-            signif(fit$ratio, 3), " from ", nrow(d), " of ", nrow(m), " fit years.")
-    yc <- c(yc, list(shape = shape, k = fit$k, ratio = fit$ratio, bounds = logisticYearBounds))
-    keep <- c("variable", "center", "scale", "shape", "k", "ratio", "norm", "bounds")
+  if (capped) {
+    fit <- fitCappedYearClimate(d)
+    if (is.null(fit)) return(noTerm("the glm failed"))
+    message("fireSense_ignitionFit: year climate term (", variable, "), capped: beta = ", signif(fit$beta, 3), ", zCap = ",
+            signif(fit$zCap, 3), " (driest fit year ", signif(max(d$z), 3), "; deviance gain of the cap ",
+            signif(fit$gain, 3), ", kept if > 2) from ", nrow(d), " of ", nrow(m), " fit years.")
+    yc <- c(yc, list(shape = shape, beta = fit$beta, zCap = fit$zCap))
+    keep <- c("variable", "center", "scale", "shape", "beta", "zCap", "norm")
   } else {
     d$offset <- log(fireSenseUtils::scaleToObservedLevel(d$observed, d$predicted))
     f <- tryCatch(suppressWarnings(stats::glm(observed ~ 0 + z, offset = offset, weights = d$w, family = stats::poisson,
@@ -86,47 +91,50 @@ fitYearClimate <- function(variable, raw, yearTotals, shape = "loglinear", weigh
 
 #' The bounds of the logistic year climate term
 #'
-#' `kMax` and `ratioMax`: `k` is fitted in 0 to `kMax` and `ratio` in 1 to `ratioMax`; `capFactor`: the upper level over
-#' the average, `ratio / norm`, may not exceed `capFactor` times the largest observed year total over their mean. The
-#' stored term records them (`bounds`), so a fit made under other bounds is not reused (`storedYearClimateProblem()`).
+#' The bounds stored logistic fits were made under (`kMax`, `ratioMax`, `capFactor`; the logistic shape is no longer
+#' fitted). A stored logistic term is reused only if it records these (`storedYearClimateProblem()`).
 logisticYearBounds <- c(capFactor = 3, kMax = 10, ratioMax = 1000)
 
-#' The logistic year climate term: `k` and `ratio`
+#' The capped year climate term: `beta` and `zCap`
 #'
-#' Maximises the (weighted) Poisson likelihood of `O_y ~ c * P_y * g(z_y)`, `g = 1 + (ratio - 1) * plogis(k * z)`, over
-#' `k` and `ratio` within `logisticYearBounds`, with `c` profiled out, from a grid of starting values (`optim()`, Nelder-Mead
-#' on an unconstrained scale). The upper level over the average, `ratio / mean(g)` over the fit years, may not exceed `capFactor`
-#' times `max(O_y) / mean(O_y)` (a point outside is not accepted). A fit no better than the flat multiplier gives
-#' `k = 0`, `ratio = 1`.
+#' For a cap `zCap`, the weighted Poisson glm `observed ~ x`, `x = min(z, zCap)`, offset `log(predicted)`, gives `beta`
+#' (floored at 0, then the level alone is fitted) and a deviance. `zCap` is profiled: `optimize()` within each interval
+#' between the sorted distinct `z` from the second smallest up, and at each `z`. The log-linear curve is the cap at the
+#' largest `z`; a lower cap is kept only if its deviance is more than 2 below that.
 #'
 #' @param d `data.frame` with `observed`, `predicted`, `z` and `w` of the years of the fit.
-#' @param zFit `z` of every fit year (the years `norm` averages over).
-#' @return `list(k, ratio)`, or `NULL` if no start gave a finite likelihood.
-fitLogisticYearClimate <- function(d, zFit) {
-  w <- d$w
-  kMax <- logisticYearBounds[["kMax"]]; ratioMax <- logisticYearBounds[["ratioMax"]]
-  cap <- logisticYearBounds[["capFactor"]] * max(d$observed) / mean(d$observed)
-  dev <- function(k, ratio) {
-    g <- fireSenseUtils::logisticYearCurve(d$z, k, ratio)
-    mu <- sum(w * d$observed) / sum(w * d$predicted * g) * d$predicted * g
-    2 * sum(w * (ifelse(d$observed > 0, d$observed * log(d$observed / mu), 0) - (d$observed - mu)))
+#' @return `list(beta, zCap, gain)` (`gain`: the deviance of the log-linear curve minus the chosen one), or `NULL` if
+#'   the glm fails.
+fitCappedYearClimate <- function(d) {
+  fitAt <- function(zCap) {
+    x <- pmin(d$z, zCap)
+    f <- tryCatch(suppressWarnings(stats::glm(d$observed ~ x, offset = log(d$predicted), weights = d$w,
+                                              family = stats::poisson)), error = function(e) NULL)
+    if (is.null(f) || !all(is.finite(stats::coef(f)))) return(list(beta = NA_real_, deviance = Inf))
+    if (stats::coef(f)[["x"]] > 0) return(list(beta = stats::coef(f)[["x"]], deviance = stats::deviance(f)))
+    f0 <- suppressWarnings(stats::glm(d$observed ~ 1, offset = log(d$predicted), weights = d$w, family = stats::poisson))
+    list(beta = 0, deviance = stats::deviance(f0))
   }
-  objective <- function(u) {
-    k <- kMax * stats::plogis(u[1])
-    ratio <- 1 + min(exp(u[2]), ratioMax - 1)
-    if (ratio / mean(fireSenseUtils::logisticYearCurve(zFit, k, ratio)) > cap) return(1e12)
-    out <- dev(k, ratio)
-    if (is.finite(out)) out else 1e12
+  zs <- sort(unique(d$z))
+  top <- zs[length(zs)]
+  linear <- fitAt(top)
+  if (!is.finite(linear$deviance)) return(NULL)
+  best <- list(zCap = top, beta = linear$beta, deviance = linear$deviance)
+  if (length(zs) >= 3L) {
+    cand <- zs[-1]
+    for (i in seq_len(length(cand) - 1L)) {
+      o <- stats::optimize(function(m) fitAt(m)$deviance, c(cand[i], cand[i + 1L]))
+      cand <- c(cand, o$minimum)
+    }
+    for (m in cand) {
+      f <- fitAt(m)
+      if (f$deviance < best$deviance) best <- list(zCap = m, beta = f$beta, deviance = f$deviance)
+    }
   }
-  best <- list(value = dev(0, 1), k = 0, ratio = 1)
-  if (!is.finite(best$value)) return(NULL)
-  for (k0 in c(0.5, 1, 2, 4)) for (r0 in c(0.3, 1, 3)) {
-    o <- tryCatch(stats::optim(c(stats::qlogis(k0 / kMax), log(r0)), objective, method = "Nelder-Mead"),
-                  error = function(e) NULL)
-    if (!is.null(o) && o$value < best$value - 1e-9)
-      best <- list(value = o$value, k = kMax * stats::plogis(o$par[1]), ratio = 1 + min(exp(o$par[2]), ratioMax - 1))
-  }
-  list(k = best$k, ratio = best$ratio)
+  gain <- linear$deviance - best$deviance
+  if (gain <= 2) best <- list(zCap = top, beta = linear$beta)
+  if (best$beta == 0) best$zCap <- top
+  list(beta = best$beta, zCap = best$zCap, gain = gain)
 }
 
 #' The year climate multiplier of each row
